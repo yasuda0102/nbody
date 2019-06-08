@@ -3,6 +3,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <chrono>
+#include <random>
+#include <omp.h>
 
 using namespace std;
 
@@ -55,6 +57,13 @@ private:
     vec3 p;
 
 public:
+    Point() {
+        this->mass = 0.0;
+        memset(&(this->a), 0, sizeof(vec3));
+        memset(&(this->v), 0, sizeof(vec3));
+        memset(&(this->p), 0, sizeof(vec3));
+    }
+
     Point(double mass, vec3 &a, vec3 &v, vec3 &p) {
         this->mass = mass;
         memcpy(&(this->a), &a, sizeof(vec3));
@@ -76,6 +85,22 @@ public:
 
     vec3 getP() {
         return this->p;
+    }
+
+    void setMass(const double m) {
+        this->mass = m;
+    }
+
+    void setA(const vec3 &a) {
+        this->a = a;
+    }
+
+    void setV(const vec3 &v) {
+        this->v = v;
+    }
+
+    void setP(const vec3 &p) {
+        this->p = p;
     }
 };
 
@@ -111,10 +136,10 @@ vec3 operator+(const vec3 &a, const vec3 &b) {
 
 vector<vec3> *calc_force_vector(vector<Point> *p) {
     const double G = 6.67408e-11;
-    vector<vec3> *v = new vector<vec3>();
+    vector<vec3> *v = new vector<vec3>(p->size());
 
+    #pragma omp parallel for
     for (int i = 0; i < p->size(); i++) {
-        v->push_back(vec3());
         for (int j = 0; j < p->size(); j++) {
             if (i == j) {
                 continue;
@@ -133,20 +158,22 @@ vector<vec3> *calc_force_vector(vector<Point> *p) {
 vector<Point> *leap_flog(vector<Point> *p, vector<vec3> *force_list) {
     const double TIME_STEP = 10e-3;
 
-    vector<Point>*pp = new vector<Point>();
+    vector<Point> *pp = new vector<Point>(p->size());
 
+    #pragma omp parallel for
     for (int i = 0; i < p->size(); i++) {
         vec3 pp_half = (*p)[i].getV() + (TIME_STEP / 2.0) * (*p)[i].getA();
         vec3 pp_x = (*p)[i].getP() + TIME_STEP * pp_half;
         vec3 pp_v = (*p)[i].getV() + (TIME_STEP * 2.0) * (*force_list)[i];
 
-        pp->push_back(*new Point((*p)[i].getMass(), (*force_list)[i], pp_v, pp_x));
+        (*pp)[i] = *new Point((*p)[i].getMass(), (*force_list)[i], pp_v, pp_x);
     }
 
     return pp;
 }
 
 int main(void) {
+/*
     double m = 1.0e+10;
     vec3 a = {0.0, 0.0, 0.0};
     vec3 v = {0.0, 0.0, 0.0};
@@ -159,13 +186,26 @@ int main(void) {
     l->push_back(*x);
     l->push_back(*y);
     vector<vec3> *force_list = NULL;
+*/
+    double m = 1.0e+10;
+    vec3 a = {0.0, 0.0, 0.0};
+    vec3 v = {0.0, 0.0, 0.0};
+    vector<vec3> *force_list = NULL;
+    vector<Point> *l = new vector<Point>(100);
+    vec3 zero_v = {0.0, 0.0, 0.0};
+
+    random_device rd;
+    mt19937 mt(rd());
+    for (int i = 0; i < 100; i++) {
+        vec3 p(100.0 / mt(), 100.0 / mt(), 0.0);
+        (*l)[i] = *new Point(1.0e+10, zero_v, zero_v, p);
+    }
 
     auto start = chrono::system_clock::now();
     for (int i = 0; i < 100; i++) {
         force_list = calc_force_vector(l);
         vector<Point> *new_point = leap_flog(l, force_list);
 
-        
         delete l;
         delete force_list;
         force_list = NULL;
@@ -176,9 +216,11 @@ int main(void) {
     auto usec = chrono::duration_cast<chrono::microseconds>(end - start).count();
     printf("%ld [usec]\n", usec);
 
+/*
     for (int i = 0; i < l->size(); i++) {
         printf("[%e %e %e]\n", (*l)[i].getP().vector[0], 
                                (*l)[i].getP().vector[1], 
                                (*l)[i].getP().vector[2]);
     }
+*/
 }
