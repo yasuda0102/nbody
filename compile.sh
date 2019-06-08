@@ -1,2 +1,1 @@
-g++ -fopenmp *.cpp
-
+./setup.py build_ext -i

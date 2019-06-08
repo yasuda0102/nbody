@@ -5,6 +5,7 @@
 #include <chrono>
 #include <random>
 #include <omp.h>
+#include <python3.6m/Python.h>
 
 using namespace std;
 
@@ -170,6 +171,62 @@ vector<Point> *leap_flog(vector<Point> *p, vector<vec3> *force_list) {
     }
 
     return pp;
+}
+
+PyObject *calc_step(PyObject *self, PyObject *args) {
+    vector<vec3> *force_list = NULL;
+    vector<Point> *l = new vector<Point>();
+    
+    PyObject *points;
+    int ret;
+    ret = PyArg_ParseTuple(args, "O", &points);
+    if (!ret) {
+        return NULL;
+    }
+
+    Py_ssize_t size = PyList_Size(points);
+    printf("%ld\n", size);
+
+    for (int i = 0; i < size; i++) {
+        // PyObject *mass = PyObject_GetAttrString(PyList_GetItem(points, i), "mass");
+        PyObject *item = PyList_GetItem(points, i);
+        if (item == NULL) {
+            return NULL;
+        }
+
+        PyObject *mass = PyObject_CallMethod(item, "getMass", NULL);
+        if (mass == NULL) {
+            return NULL;
+        }
+        if (!PyFloat_Check(mass)) {
+            return NULL;
+        }
+        double m;
+        PyArg_Parse(mass, "d", &m);
+
+        printf("%d: %e\n", i, m);
+    }
+
+    delete l;
+
+    return points;
+}
+
+static PyMethodDef Methods[] = {
+    {"step", (PyCFunction) calc_step, METH_VARARGS, "step"},
+    {NULL, NULL, 0, NULL}
+};
+
+static struct PyModuleDef calcmodule = {
+    PyModuleDef_HEAD_INIT,
+    "calc",
+    NULL,
+    -1,
+    Methods
+};
+
+PyMODINIT_FUNC PyInit_calc() {
+    return PyModule_Create(&calcmodule);
 }
 
 int main(void) {
