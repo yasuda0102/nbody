@@ -162,7 +162,7 @@ class Field:
 
 
 def main():
-    bodies = 2
+    bodies = 100
     steps = 100
 
     z_vector = np.asarray([0.0, 0.0, 0.0])
@@ -172,17 +172,17 @@ def main():
         pos = np.asarray([rand_list[2 * i + 0], rand_list[2 * i + 1], 0.0])
         a.append(Point(1.0e+10, z_vector, z_vector, pos))
 
-    b = []
-    b.append(Point(1.0e+10, z_vector, z_vector, np.asarray([0.0, 0.0, 0.0])))
-    b.append(Point(1.0e+10, z_vector, z_vector, np.asarray([100.0, 0.0, 0.0])))
+    # b = []
+    # b.append(Point(1.0e+10, z_vector, z_vector, np.asarray([0.0, 0.0, 0.0])))
+    # b.append(Point(1.0e+10, z_vector, z_vector, np.asarray([100.0, 0.0, 0.0])))
 
-    # f = Field(a)
-    f = Field(b)
-    f.showParameters()
+    f = Field(a)
+    # f = Field(b)
+    # f.showParameters()
     start = time.time()
     for i in range(steps):
         f.step()
-    f.showParameters()
+    # f.showParameters()
     end = time.time()
 
     print(f"bodies: {bodies}, steps: {steps}")
