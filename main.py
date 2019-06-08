@@ -120,13 +120,15 @@ class Field:
     def step(self):
         # 初期化
         length = len(self.__getPoints())
-        force_vector_list = [0.0] * length
+        force_vector_list = []
+        for i in range(length):
+            force_vector_list.append(np.asarray([0.0, 0.0, 0.0]))
 
         old_points = cp.deepcopy(self.__getPoints())
 
        # 万有引力ベクトルの導出
         def calc_force_vector(self, points, vectors, index):
-           vectors[index] = 0.0
+           vectors[index] = np.asarray([0.0, 0.0, 0.0])
            v = points[index].getPosition()
 
            i = 0
