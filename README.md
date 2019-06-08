@@ -6,4 +6,9 @@ N体問題を解くためのPythonプログラムを作る。
 そこで、数値計算によって求める。
 
 ## 進捗
-何もできてません。
+一応計算の実装は完了。
+
+## 参考文献
+[N体問題で有名な牧野先生が作ったPDF](http://www.cfca.nao.ac.jp/~cfca/hpc/muv/text/makino_07.pdf)
+
+[北里大学の数値計算の講義の資料っぽい](https://www.kitasato-u.ac.jp/sci/resea/buturi/hisenkei/sogo/sanpou07.pdf)
