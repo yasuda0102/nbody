@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import numpy as np
+import copy as cp
 
 class Point:
     def __init__(self, mass, acceleration, velocity, position):
@@ -25,7 +26,7 @@ class Point:
 
     def setAcceleration(self, acceleration):
         # 引数チェック
-        if acceleration is not np.ndarray:
+        if type(acceleration) is not np.ndarray:
             raise ValueError("加速度はndarrayでなければなりません。")
         
         if acceleration.size != 3:
@@ -39,7 +40,7 @@ class Point:
 
     def setVelocity(self, velocity):
         # 引数チェック
-        if velocity is not np.ndarray:
+        if type(velocity) is not np.ndarray:
             raise ValueError("速度はndarrayでなければなりません。")
         
         if velocity.size != 3:
@@ -53,7 +54,7 @@ class Point:
 
     def setPosition(self, position):
         # 引数チェック
-        if position is not np.ndarray:
+        if type(position) is not np.ndarray:
             raise ValueError("位置はndarrayでなければなりません。")
         
         if position.size != 3:
@@ -66,11 +67,47 @@ class Point:
         return self.__position
 
 class Field:
+    GRAVITATIONAL_CONSTANT = 6.67408e-11
+    TIME_STEP = 1.0e-3
+
     def __init__(self, points):
+        # 引数チェック
+        if type(points) is not list:
+            raise ValueError("pointsはPointのリストでなければなりません。")
+        for p in points:
+            if type(p) is not Point:
+                raise ValueError("pointsはPointのリストでなければなりません。")
+        
+        # セット
         self.__points = points
+    
+    def step(self):
+        old_points = cp.deepcopy(self.__points)
+        force_vector_list = []
+
+        # 万有引力ベクトルの導出
+        i = 0
+        for pp in old_points:
+            force_vector_list.append(0.0)
+
+            for pp2 in old_points:
+                # 自分自身は除外する
+                if pp is pp2:
+                    continue
+
+                vec = pp.getPosition() - pp2.getPosition()
+                force_vector_list[i] += self.GRAVITATIONAL_CONSTANT * pp2.getMass() * vec / np.power(np.linalg.norm(vec), 3)
+
+            i = i + 1
+        
 
 def main():
-    print("test")
+    a = []
+    a.append(Point(10.0, np.asarray([0.0, 0.0, 0.0]), np.asarray([0.0, 0.0, 0.0]), np.asarray([0.0, 0.0, 0.0])))
+    a.append(Point(10.0, np.asarray([0.0, 0.0, 0.0]), np.asarray([0.0, 0.0, 0.0]), np.asarray([100.0, 0.0, 0.0])))
+
+    f = Field(a)
+    f.step()
 
 if __name__ == "__main__":
     main()
