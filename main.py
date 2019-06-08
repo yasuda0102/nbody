@@ -3,6 +3,7 @@
 import numpy as np
 import copy as cp
 import time
+import threading
 
 class Point:
     def __init__(self, mass, acceleration, velocity, position):
@@ -117,35 +118,44 @@ class Field:
         print("")
 
     def step(self):
-        force_vector_list = []
+        # 初期化
+        length = len(self.__getPoints())
+        force_vector_list = [0.0] * length
 
-        # 万有引力ベクトルの導出
-        i = 0
-        for pp in self.__getPoints():
-            force_vector_list.append(0.0)
+        old_points = cp.deepcopy(self.__getPoints())
 
-            for pp2 in self.__getPoints():
+       # 万有引力ベクトルの導出
+        def calc_force_vector(self, points, vectors, index):
+           vectors[index] = 0.0
+           v = points[index].getPosition()
+
+           i = 0
+           for pp in points:
                 # 自分自身は除外する
-                if pp is pp2:
+                if i == index:
+                    i += 1
                     continue
 
-                vec = pp2.getPosition() - pp.getPosition()
-                force_vector_list[i] += self.__GRAVITATIONAL_CONSTANT * pp2.getMass() * vec / np.power(np.linalg.norm(vec), 3)
-
-            i += 1
+                vec = pp.getPosition() - v
+                vectors[index] += self.__GRAVITATIONAL_CONSTANT * pp.getMass() * vec / np.power(np.linalg.norm(vec), 3)
+                i += 1
+        for i in range(length):
+            calc_force_vector(self, old_points, force_vector_list, i)
 
         # リープ・フロッグ法で速度、変位を求める
-        i = 0
-        for pp in self.__getPoints():
-            pp_half = pp.getVelocity() + (self.__TIME_STEP / 2.0) * pp.getAcceleration()
-            pp_x = pp.getPosition() + self.__TIME_STEP * pp_half
-            pp_v = pp.getVelocity() + (self.__TIME_STEP * 2.0) * force_vector_list[i]
+        def leap_flog(self, points, vectors, index):
+            p = points[index]
 
-            pp.setAcceleration(force_vector_list[i])
-            pp.setVelocity(pp_v)
-            pp.setPosition(pp_x)
+            pp_half = p.getVelocity() + (self.__TIME_STEP / 2.0) * p.getAcceleration()
+            pp_x = p.getPosition() + self.__TIME_STEP * pp_half
+            pp_v = p.getVelocity() + (self.__TIME_STEP * 2.0) * vectors[index]
 
-            i = i + 1
+            new_pp = self.__getPoints()[index]
+            new_pp.setAcceleration(vectors[index])
+            new_pp.setVelocity(pp_v)
+            new_pp.setPosition(pp_x)
+        for i in range(length):
+            leap_flog(self, old_points, force_vector_list, i)
 
         # ステップ数を増やす
         self.__setStep(self.getStep() + 1)
@@ -162,10 +172,17 @@ def main():
         pos = np.asarray([rand_list[2 * i + 0], rand_list[2 * i + 1], 0.0])
         a.append(Point(1.0e+10, z_vector, z_vector, pos))
 
+    # b = []
+    # b.append(Point(1.0e+10, z_vector, z_vector, np.asarray([0.0, 0.0, 0.0])))
+    # b.append(Point(1.0e+10, z_vector, z_vector, np.asarray([100.0, 0.0, 0.0])))
+
     f = Field(a)
+    # f = Field(b)
+    # f.showParameters()
     start = time.time()
     for i in range(steps):
         f.step()
+    # f.showParameters()
     end = time.time()
 
     print(f"bodies: {bodies}, steps: {steps}")
