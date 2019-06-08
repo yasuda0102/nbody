@@ -3,7 +3,7 @@
 import numpy as np
 import copy as cp
 import time
-import threading
+from joblib import Parallel, delayed
 
 class Point:
     def __init__(self, mass, acceleration, velocity, position):
@@ -120,33 +120,26 @@ class Field:
     def step(self):
         # 初期化
         length = len(self.__getPoints())
-        force_vector_list = [0.0] * length
-
         old_points = cp.deepcopy(self.__getPoints())
 
        # 万有引力ベクトルの導出
-        def calc_force_vector(self, points, vectors, index):
-           vectors[index] = 0.0
-           v = points[index].getPosition()
+        def calc_force_vector(self, points, index):
+            v = points[index].getPosition()
 
-           i = 0
-           for pp in points:
+            i = 0
+            for pp in points:
                 # 自分自身は除外する
                 if i == index:
                     i += 1
                     continue
 
                 vec = pp.getPosition() - v
-                vectors[index] += self.__GRAVITATIONAL_CONSTANT * pp.getMass() * vec / np.power(np.linalg.norm(vec), 3)
+                fvec = self.__GRAVITATIONAL_CONSTANT * pp.getMass() * vec / np.power(np.linalg.norm(vec), 3)
                 i += 1
+            
+            return fvec
 
-        th = []
-        for i in range(length):
-            th.append(threading.Thread(target=calc_force_vector, args=(self, old_points, force_vector_list, i)))
-            th[i].start()
-
-        for i in th:
-            i.join()
+        force_vector_list = Parallel(n_jobs=-1)([delayed(calc_force_vector)(self, old_points, i) for i in range(length)])
 
         # リープ・フロッグ法で速度、変位を求める
         def leap_flog(self, points, vectors, index):
@@ -156,25 +149,20 @@ class Field:
             pp_x = p.getPosition() + self.__TIME_STEP * pp_half
             pp_v = p.getVelocity() + (self.__TIME_STEP * 2.0) * vectors[index]
 
-            new_pp = self.__getPoints()[index]
-            new_pp.setAcceleration(vectors[index])
-            new_pp.setVelocity(pp_v)
-            new_pp.setPosition(pp_x)
+            new_pp = Point(p.getMass(), vectors[index], pp_v, pp_x)
+            
+            return new_pp
+        
+        new_point = Parallel(n_jobs=-1)([delayed(leap_flog)(self, old_points, force_vector_list, i) for i in range(length)])
 
-        th = []
-        for i in range(length):
-            th.append(threading.Thread(target=leap_flog, args=(self, old_points, force_vector_list, i)))
-            th[i].start()
-
-        for i in th:
-            i.join()
+        self.__points = new_point
 
         # ステップ数を増やす
         self.__setStep(self.getStep() + 1)
 
 
 def main():
-    bodies = 100
+    bodies = 2
     steps = 100
 
     z_vector = np.asarray([0.0, 0.0, 0.0])
@@ -184,17 +172,17 @@ def main():
         pos = np.asarray([rand_list[2 * i + 0], rand_list[2 * i + 1], 0.0])
         a.append(Point(1.0e+10, z_vector, z_vector, pos))
 
-    # b = []
-    # b.append(Point(1.0e+10, z_vector, z_vector, np.asarray([0.0, 0.0, 0.0])))
-    # b.append(Point(1.0e+10, z_vector, z_vector, np.asarray([100.0, 0.0, 0.0])))
+    b = []
+    b.append(Point(1.0e+10, z_vector, z_vector, np.asarray([0.0, 0.0, 0.0])))
+    b.append(Point(1.0e+10, z_vector, z_vector, np.asarray([100.0, 0.0, 0.0])))
 
-    f = Field(a)
-    # f = Field(b)
-    # f.showParameters()
+    # f = Field(a)
+    f = Field(b)
+    f.showParameters()
     start = time.time()
     for i in range(steps):
         f.step()
-    # f.showParameters()
+    f.showParameters()
     end = time.time()
 
     print(f"bodies: {bodies}, steps: {steps}")
