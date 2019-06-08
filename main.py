@@ -89,24 +89,6 @@ class Field:
     def __getPoints(self):
         return self.__points
 
-    def __setPoint(self, point, index):
-        # 引数チェック
-        if type(point) is not Point:
-            raise ValueError("pointsの要素はPointでなければなりません。")
-
-        if (type(index) is not int) or (index < 0):
-            raise ValueError("indexは正の整数でなければなりません。")
-
-        # セット
-        self.__points[index] = point
-    
-    def __getPoint(self, index):
-        # 引数チェック
-        if (type(index) is not int) or (index < 0):
-            raise ValueError("indexは正の整数でなければなりません。")
-
-        return self.__points[index]
-
     def __setStep(self, step):
         # 引数チェック
         if type(step) is not int:
@@ -134,34 +116,33 @@ class Field:
         print("")
 
     def step(self):
-        old_points = cp.deepcopy(self.__points)
         force_vector_list = []
 
         # 万有引力ベクトルの導出
         i = 0
-        for pp in old_points:
+        for pp in self.__getPoints():
             force_vector_list.append(0.0)
 
-            for pp2 in old_points:
+            for pp2 in self.__getPoints():
                 # 自分自身は除外する
                 if pp is pp2:
                     continue
 
-                vec = pp.getPosition() - pp2.getPosition()
+                vec = pp2.getPosition() - pp.getPosition()
                 force_vector_list[i] += self.__GRAVITATIONAL_CONSTANT * pp2.getMass() * vec / np.power(np.linalg.norm(vec), 3)
 
             i += 1
 
         # リープ・フロッグ法で速度、変位を求める
         i = 0
-        for pp in old_points:
+        for pp in self.__getPoints():
             pp_half = pp.getVelocity() + (self.__TIME_STEP / 2.0) * pp.getAcceleration()
             pp_x = pp.getPosition() + self.__TIME_STEP * pp_half
             pp_v = pp.getVelocity() + (self.__TIME_STEP * 2.0) * force_vector_list[i]
 
-            self.__points[i].setAcceleration(force_vector_list[i])
-            self.__points[i].setVelocity(pp_v)
-            self.__points[i].setPosition(pp_x)
+            pp.setAcceleration(force_vector_list[i])
+            pp.setVelocity(pp_v)
+            pp.setPosition(pp_x)
 
             i = i + 1
 
@@ -171,12 +152,12 @@ class Field:
 
 def main():
     a = []
-    a.append(Point(10.0, np.asarray([0.0, 0.0, 0.0]), np.asarray([0.0, 0.0, 0.0]), np.asarray([0.0, 0.0, 0.0])))
-    a.append(Point(10.0, np.asarray([0.0, 0.0, 0.0]), np.asarray([0.0, 0.0, 0.0]), np.asarray([100.0, 0.0, 0.0])))
+    a.append(Point(1.0e+10, np.asarray([0.0, 0.0, 0.0]), np.asarray([0.0, 0.0, 0.0]), np.asarray([0.0, 0.0, 0.0])))
+    a.append(Point(1.0e+10, np.asarray([0.0, 0.0, 0.0]), np.asarray([0.0, 0.0, 0.0]), np.asarray([100.0, 0.0, 0.0])))
 
     f = Field(a)
     f.showParameters()
-    for i in range(100):
+    for i in range(100000):
         f.step()
     f.showParameters()
 
