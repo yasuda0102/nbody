@@ -5,9 +5,11 @@
 #include <chrono>
 #include <random>
 #include <omp.h>
-#include <python3.6m/Python.h>
+#include <boost/python/numpy.hpp>
 
 using namespace std;
+namespace p = boost::python;
+namespace np = boost::python::numpy;
 
 class vec3 {
 public:
@@ -65,7 +67,7 @@ public:
         memset(&(this->p), 0, sizeof(vec3));
     }
 
-    Point(double mass, vec3 &a, vec3 &v, vec3 &p) {
+    Point(const double mass, const vec3 a, const vec3 v, const vec3 p) {
         this->mass = mass;
         memcpy(&(this->a), &a, sizeof(vec3));
         memcpy(&(this->v), &v, sizeof(vec3));
@@ -173,60 +175,31 @@ vector<Point> *leap_flog(vector<Point> *p, vector<vec3> *force_list) {
     return pp;
 }
 
-PyObject *calc_step(PyObject *self, PyObject *args) {
+void step(vector<Point> *points) {
     vector<vec3> *force_list = NULL;
     vector<Point> *l = new vector<Point>();
-    
-    PyObject *points;
-    int ret;
-    ret = PyArg_ParseTuple(args, "O", &points);
-    if (!ret) {
-        return NULL;
-    }
 
-    Py_ssize_t size = PyList_Size(points);
-    printf("%ld\n", size);
-
-    for (int i = 0; i < size; i++) {
-        // PyObject *mass = PyObject_GetAttrString(PyList_GetItem(points, i), "mass");
-        PyObject *item = PyList_GetItem(points, i);
-        if (item == NULL) {
-            return NULL;
-        }
-
-        PyObject *mass = PyObject_CallMethod(item, "getMass", NULL);
-        if (mass == NULL) {
-            return NULL;
-        }
-        if (!PyFloat_Check(mass)) {
-            return NULL;
-        }
-        double m;
-        PyArg_Parse(mass, "d", &m);
-
-        printf("%d: %e\n", i, m);
-    }
+    force_list = calc_force_vector(l);
+    vector<Point> *new_point = leap_flog(l, force_list);
 
     delete l;
+    delete force_list;
+    force_list = NULL;
 
-    return points;
+    *points = *new_point;
 }
 
-static PyMethodDef Methods[] = {
-    {"step", (PyCFunction) calc_step, METH_VARARGS, "step"},
-    {NULL, NULL, 0, NULL}
-};
+BOOST_PYTHON_MODULE(calc) {
+    using namespace boost::python;
 
-static struct PyModuleDef calcmodule = {
-    PyModuleDef_HEAD_INIT,
-    "calc",
-    NULL,
-    -1,
-    Methods
-};
+    def("step", &step);
 
-PyMODINIT_FUNC PyInit_calc() {
-    return PyModule_Create(&calcmodule);
+    class_<vec3>("vec3", init<const double, const double, const double>());
+
+    class_<Point>("Point", init<const double, const vec3, const vec3, const vec3>())
+        .def("getA", &Point::getA)
+        .def("getV", &Point::getV)
+        .def("getP", &Point::getP);
 }
 
 int main(void) {

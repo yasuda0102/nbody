@@ -15,4 +15,7 @@ N体問題を解くためのPythonプログラムを作る。
 ## 参考文献
 [N体問題で有名な牧野先生が作ったPDF](http://www.cfca.nao.ac.jp/~cfca/hpc/muv/text/makino_07.pdf)
 
+[N体問題で有名な牧野先生が作ったPDF2](https://www2.ccs.tsukuba.ac.jp/algorithm-ws/pdf/1-1-makino.pdf)
+
 [北里大学の数値計算の講義の資料っぽい](https://www.kitasato-u.ac.jp/sci/resea/buturi/hisenkei/sogo/sanpou07.pdf)
+
