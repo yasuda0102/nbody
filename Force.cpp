@@ -6,6 +6,7 @@
 #include <random>
 #include <omp.h>
 #include <boost/python/numpy.hpp>
+#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 using namespace std;
 namespace p = boost::python;
@@ -14,7 +15,7 @@ namespace np = boost::python::numpy;
 class vec3 {
 public:
     double vector[3];
-
+ 
     vec3() {
         memset(&(this->vector), 0, sizeof(double) * 3);
     }
@@ -200,57 +201,4 @@ BOOST_PYTHON_MODULE(calc) {
         .def("getA", &Point::getA)
         .def("getV", &Point::getV)
         .def("getP", &Point::getP);
-}
-
-int main(void) {
-/*
-    double m = 1.0e+10;
-    vec3 a = {0.0, 0.0, 0.0};
-    vec3 v = {0.0, 0.0, 0.0};
-    vec3 p1 = {0.0, 0.0, 0.0};
-    vec3 p2 = {100.0, 0.0, 0.0};
-
-    Point *x = new Point(m, a, v, p1);
-    Point *y = new Point(m, a, v, p2);
-    vector<Point> *l = new vector<Point>();
-    l->push_back(*x);
-    l->push_back(*y);
-    vector<vec3> *force_list = NULL;
-*/
-    double m = 1.0e+10;
-    vec3 a = {0.0, 0.0, 0.0};
-    vec3 v = {0.0, 0.0, 0.0};
-    vector<vec3> *force_list = NULL;
-    vector<Point> *l = new vector<Point>(100);
-    vec3 zero_v = {0.0, 0.0, 0.0};
-
-    random_device rd;
-    mt19937 mt(rd());
-    for (int i = 0; i < 100; i++) {
-        vec3 p(100.0 / mt(), 100.0 / mt(), 0.0);
-        (*l)[i] = *new Point(1.0e+10, zero_v, zero_v, p);
-    }
-
-    auto start = chrono::system_clock::now();
-    for (int i = 0; i < 100; i++) {
-        force_list = calc_force_vector(l);
-        vector<Point> *new_point = leap_flog(l, force_list);
-
-        delete l;
-        delete force_list;
-        force_list = NULL;
-
-        l = new_point;
-    }
-    auto end = chrono::system_clock::now();
-    auto usec = chrono::duration_cast<chrono::microseconds>(end - start).count();
-    printf("%ld [usec]\n", usec);
-
-/*
-    for (int i = 0; i < l->size(); i++) {
-        printf("[%e %e %e]\n", (*l)[i].getP().vector[0], 
-                               (*l)[i].getP().vector[1], 
-                               (*l)[i].getP().vector[2]);
-    }
-*/
 }
