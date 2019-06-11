@@ -152,9 +152,14 @@ window.onload = () => {
         new Point(1.0e+10, z, z, p)
     ]
 
+    const start = performance.now();
     for (let i = 0; i < 100; i++) {
         force_list = [];
         calc_force_vector(points, force_list);
         leap_flog(force_list, points);
     }
+    const end = performance.now();
+    const elapsed = end - start;
+    const elapsedStr = elapsed.toPrecision(3);
+    console.log(elapsedStr);
 }
