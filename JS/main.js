@@ -1,6 +1,7 @@
 const G = 6.67408e-11;
 const TIME_STEP = 1.0e-3;
 
+let points = [];
 let force_list = [];
 
 class Vec3 {
@@ -17,7 +18,11 @@ class Vec3 {
         this.vector[2] = z;
     }
 
-    add(a, b) { 
+    get() {
+        return [this.vector[0], this.vector[1], this.vector[2]];
+    }
+
+    static add(a, b) { 
         return new Vec3(
             a.vector[0] + b.vector[0],
             a.vector[1] + b.vector[1], 
@@ -25,7 +30,13 @@ class Vec3 {
         );
     }
 
-    sub(a, b) {
+    add(a) {
+        this.vector[0] += a.vector[0];
+        this.vector[1] += a.vector[1];
+        this.vector[2] += a.vector[2];
+    }
+
+    static sub(a, b) {
         return new Vec3(
             a.vector[0] - b.vector[0],
             a.vector[1] - b.vector[1],
@@ -33,7 +44,13 @@ class Vec3 {
         );
     }
 
-    mul(a, v) {
+    sub(a) {
+        this.vector[0] -= a.vector[0];
+        this.vector[1] -= a.vector[1];
+        this.vector[2] -= a.vector[2];
+    }
+
+    static mul(a, v) {
         return new Vec3(
             a * v.vector[0],
             a * v.vector[1],
@@ -41,7 +58,13 @@ class Vec3 {
         );
     }
 
-    dot(a, b) {
+    mul(a) {
+        this.vector[0] *= a;
+        this.vector[1] *= a;
+        this.vector[2] *= a;
+    }
+
+    static dot(a, b) {
         return a.vector[0] * b.vector[0] + a.vector[1] * b.vector[1] + a.vector[2] * b.vector[2];
     }
 
@@ -51,6 +74,8 @@ class Vec3 {
                                       this.vector[2] * this.vector[2]), this);
     }
 }
+
+
 
 class Point {
     constructor(m, a, v, p) {
@@ -90,30 +115,46 @@ class Point {
 }
 
 calc_force_vector = (points, force_list) => {
-    v = new Vec3(0.0 ,0.0, 0.0);
-    tmp = new Vec3(0.0, 0.0, 0.0);
+    let v = new Vec3(0.0 ,0.0, 0.0);
 
     for(let i = 0; i < points.length; i++) {
         force_list.push(new Vec3(0.0, 0.0, 0.0));
+        force_list[i].set(0.0, 0.0, 0.0);
         for (let j = 0; j < points.length; j++) {
             if (points[i] == points[j]) {
                 continue;
             }
 
-            d = tmp.sub(points[j].getP(), points[i].getP());
-            norm = Math.pow(Math.sqrt(tmp.dot(d, d)), 3.0);
-            v = tmp.add(v, tmp.mul(1.0 / norm, tmp.mul(G * points[j].getM(), d)));
+            distance = Vec3.sub(points[j].getP(), points[i].getP());
+            norm = Math.pow(Math.sqrt(Vec3.dot(distance, distance)), 3.0);
+            force_list[i].add(Vec3.mul(1.0 / norm, Vec3.mul(G * points[j].getM(), distance)));
         }
-        force_list[i] = v;
+    }
+}
+
+leap_flog = (force_list, points) => {
+    for (let i = 0; i < points.length; i++) {
+        let pp_half = Vec3.add(points[i].getV(), Vec3.mul(TIME_STEP / 2.0, points[i].getA()));
+        pp_x = Vec3.add(points[i].getP(), Vec3.mul(TIME_STEP, pp_half));
+        pp_v = Vec3.add(points[i].getV(), Vec3.mul(TIME_STEP * 2.0, force_list[i]));
+
+        points[i].setA(force_list[i]);
+        points[i].setV(pp_v);
+        points[i].setP(pp_x);
     }
 }
 
 window.onload = () => {
-    z = new Vec3(0.0, 0.0, 0.0);
-    p = new Vec3(100.0, 0.0, 0.0);
+    let z = new Vec3(0.0, 0.0, 0.0);
+    let p = new Vec3(100.0, 0.0, 0.0);
     points = [
         new Point(1.0e+10, z, z, z),
         new Point(1.0e+10, z, z, p)
     ]
-    calc_force_vector(points, force_list);
+
+    for (let i = 0; i < 100; i++) {
+        force_list = [];
+        calc_force_vector(points, force_list);
+        leap_flog(force_list, points);
+    }
 }
