@@ -3,8 +3,6 @@
 import numpy as np
 import copy as cp
 import time
-import json
-import calc
 
 class Point:
     def __init__(self, mass, acceleration, velocity, position):
@@ -166,7 +164,7 @@ class Field:
 
 def main():
     bodies = 100
-    steps = 10
+    steps = 100
 
     z_vector = np.asarray([0.0, 0.0, 0.0])
     a = []
@@ -190,9 +188,6 @@ def main():
 
     print(f"bodies: {bodies}, steps: {steps}")
     print(f"time: {(end - start) * 1000.0} [msec]")
-
-    calc.step(a)
-
 
 if __name__ == "__main__":
     main()

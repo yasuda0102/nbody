@@ -6,7 +6,6 @@
 #include <random>
 #include <omp.h>
 #include <boost/python/numpy.hpp>
-#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 using namespace std;
 namespace p = boost::python;
@@ -28,6 +27,22 @@ public:
 
     vec3(const double v[3]) {
         memcpy(&(this->vector), v, sizeof(double) * 3);
+    }
+
+    double X() const {
+        return this->vector[0];
+    }
+
+    double Y() const {
+        return this->vector[1];
+    }
+
+    double Z() const {
+        return this->vector[2];
+    }
+
+    void print() const {
+        printf("%lf %lf %lf", this->X(), this->Y(), this->Z());
     }
 
     vec3 &operator+=(const vec3 &a) {
@@ -75,19 +90,19 @@ public:
         memcpy(&(this->p), &p, sizeof(vec3));
     }
 
-    double getMass() {
+    double getMass() const {
         return this->mass;
     }
 
-    vec3 getA() {
+    vec3 getA() const {
         return this->a;
     }
 
-    vec3 getV() {
+    vec3 getV() const {
         return this->v;
     }
 
-    vec3 getP() {
+    vec3 getP() const {
         return this->p;
     }
 
@@ -105,6 +120,42 @@ public:
 
     void setP(const vec3 &p) {
         this->p = p;
+    }
+};
+
+class Points {
+private:
+    vector<Point> point_list;
+
+public:
+    void push(Point p) {
+        point_list.push_back(p);
+    }
+
+    Point get(int i) const {
+        return point_list[i];
+    }
+
+    int size() const {
+        return point_list.size();
+    }
+
+    void print() const {
+        for (int i = 0; i < this->point_list.size(); i++) {
+            printf("Number: %d\n", i);
+            printf("M: %lf\n", this->point_list[i].getMass());
+            printf("A: %lf %lf %lf\n", this->point_list[i].getA().X(), 
+                                       this->point_list[i].getA().Y(), 
+                                       this->point_list[i].getA().Z());
+            printf("V: %lf %lf %lf\n", this->point_list[i].getV().X(), 
+                                       this->point_list[i].getV().Y(), 
+                                       this->point_list[i].getV().Z());
+            printf("P: %lf %lf %lf\n", this->point_list[i].getP().X(), 
+                                       this->point_list[i].getP().Y(), 
+                                       this->point_list[i].getP().Z());
+            printf("\n");
+        }
+
     }
 };
 
@@ -138,56 +189,74 @@ vec3 operator+(const vec3 &a, const vec3 &b) {
     return result;
 }
 
-vector<vec3> *calc_force_vector(vector<Point> *p) {
+bool operator==(const vec3 &a, const vec3 &b) {
+    if (a.vector[0] == b.vector[0] &&
+        a.vector[1] == b.vector[1] &&
+        a.vector[2] == b.vector[2]) {
+            return true;
+        }
+        else {
+            return false;
+        }
+}
+
+bool operator==(const Point &a, const Point &b) {
+    if (a.getMass() == b.getMass() &&
+        a.getA() == b.getA() &&
+        a.getV() == b.getV() &&
+        a.getP() == b.getP()) {
+            return true;
+        }
+        else {
+            return false;
+        }
+
+}
+
+vector<vec3> calc_force_vector(Points &p) {
     const double G = 6.67408e-11;
-    vector<vec3> *v = new vector<vec3>(p->size());
+    vector<vec3> v(p.size());
 
     #pragma omp parallel for
-    for (int i = 0; i < p->size(); i++) {
-        for (int j = 0; j < p->size(); j++) {
+    for (int i = 0; i < p.size(); i++) {
+        for (int j = 0; j < p.size(); j++) {
             if (i == j) {
                 continue;
             }
 
-            vec3 vec = (*p)[j].getP() - (*p)[i].getP();
-            double f = G * (*p)[i].getMass() / pow(vec.norm(), 3);
+            vec3 vec = p.get(j).getP() - p.get(i).getP();
+            double f = G * p.get(j).getMass() / pow(vec.norm(), 3);
             vec3 force = f * vec;
-            (*v)[i] += force;
+            v[i] += force;
         }
     }
 
     return v;
 }
 
-vector<Point> *leap_flog(vector<Point> *p, vector<vec3> *force_list) {
+Points leap_flog(Points &p, vector<vec3> &force_list) {
     const double TIME_STEP = 10e-3;
 
-    vector<Point> *pp = new vector<Point>(p->size());
+    Points pp;
 
     #pragma omp parallel for
-    for (int i = 0; i < p->size(); i++) {
-        vec3 pp_half = (*p)[i].getV() + (TIME_STEP / 2.0) * (*p)[i].getA();
-        vec3 pp_x = (*p)[i].getP() + TIME_STEP * pp_half;
-        vec3 pp_v = (*p)[i].getV() + (TIME_STEP * 2.0) * (*force_list)[i];
+    for (int i = 0; i < p.size(); i++) {
+        vec3 pp_half = p.get(i).getV() + (TIME_STEP / 2.0) * p.get(i).getA();
+        vec3 pp_x = p.get(i).getP() + TIME_STEP * pp_half;
+        vec3 pp_v = p.get(i).getV() + (TIME_STEP * 2.0) * force_list[i];
 
-        (*pp)[i] = *new Point((*p)[i].getMass(), (*force_list)[i], pp_v, pp_x);
+        Point new_p(p.get(i).getMass(), force_list[i], pp_v, pp_x);
+        pp.push(new_p);
     }
 
     return pp;
 }
 
-void step(vector<Point> *points) {
-    vector<vec3> *force_list = NULL;
-    vector<Point> *l = new vector<Point>();
+void step(Points &points) {
+    vector<vec3> force_list = calc_force_vector(points);
+    Points new_point = leap_flog(points, force_list);
 
-    force_list = calc_force_vector(l);
-    vector<Point> *new_point = leap_flog(l, force_list);
-
-    delete l;
-    delete force_list;
-    force_list = NULL;
-
-    *points = *new_point;
+    points = new_point;
 }
 
 BOOST_PYTHON_MODULE(calc) {
@@ -195,10 +264,21 @@ BOOST_PYTHON_MODULE(calc) {
 
     def("step", &step);
 
-    class_<vec3>("vec3", init<const double, const double, const double>());
+    class_<vec3>("vec3", init<const double, const double, const double>())
+        .def("X", &vec3::X)
+        .def("Y", &vec3::Y)
+        .def("Z", &vec3::Z)
+        .def("print", &vec3::print);
 
     class_<Point>("Point", init<const double, const vec3, const vec3, const vec3>())
+        .def("getMass", &Point::getMass)
         .def("getA", &Point::getA)
         .def("getV", &Point::getV)
         .def("getP", &Point::getP);
+
+    class_<Points>("Points")
+        .def("push", &Points::push)
+        .def("get", &Points::get)
+        .def("size", &Points::size)
+        .def("print", &Points::print);
 }
