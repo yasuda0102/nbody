@@ -6,11 +6,18 @@ N体問題を解くためのPythonプログラムを作る。
 そこで、数値計算によって求める。
 
 ## 進捗
-一応計算の実装は完了。めちゃくちゃ処理が遅い。ということで、C++版も作ってみたよ。
+一応計算の実装は完了。Pythonが異常に遅い。Javascriptが予想以上に健闘している。
 
-2体で100ステップ計算した結果は以下の通り。
-- Python: 11ms
-- C++: 0.2ms
+100体で100ステップ計算した結果は以下の通り。
+- Python: 13500ms
+- Python + C++: 80ms
+- Javascript: 150ms
+
+## C++ソースのビルド方法 (Ubuntu 18.04)
+```
+sudo apt install libboost-python-dev
+./compile.sh
+```
 
 ## 参考文献
 [N体問題で有名な牧野先生が作ったPDF](http://www.cfca.nao.ac.jp/~cfca/hpc/muv/text/makino_07.pdf)
