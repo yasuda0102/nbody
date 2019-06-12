@@ -145,21 +145,23 @@ leap_flog = (force_list, points) => {
 }
 
 window.onload = () => {
-    let z = new Vec3(0.0, 0.0, 0.0);
-    let p = new Vec3(100.0, 0.0, 0.0);
-    points = [
-        new Point(1.0e+10, z, z, z),
-        new Point(1.0e+10, z, z, p)
-    ]
+    const N = 100;
+    const STEP = 100;
+
+    const z = new Vec3(0.0, 0.0, 0.0);
+    points = [];
+    for (let i = 0; i < N; i++) {
+        points.push(new Point(10e+10, z, z, new Vec3(Math.random() * 100.0, Math.random() * 100.0, 0.0)));
+    }
 
     const start = performance.now();
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < STEP; i++) {
         force_list = [];
         calc_force_vector(points, force_list);
         leap_flog(force_list, points);
     }
     const end = performance.now();
     const elapsed = end - start;
-    const elapsedStr = elapsed.toPrecision(3);
+    const elapsedStr = elapsed.toPrecision(5);
     console.log(elapsedStr);
 }
