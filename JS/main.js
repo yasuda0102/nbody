@@ -4,6 +4,25 @@ const TIME_STEP = 1.0e-3;
 let points = [];
 let force_list = [];
 
+const v_shader = "#version 300 es \n\
+in vec3 a; \n\
+\n\
+void main(void) { \n\
+    gl_Position = vec4(a, 1.0);\n\
+} \n\
+";
+
+const f_shader = "#version 300 es \n\
+\n\
+precision mediump float;\n\
+\n\
+out vec4 color;\n\
+\n\
+void main(void) { \n\
+    color = vec4(0.0, 0.0, 0.0, 1.0); \n\
+} \n\
+";
+
 class Vec3 {
     constructor(x, y, z) {
         this.vector = [];
@@ -144,6 +163,28 @@ leap_flog = (force_list, points) => {
     }
 }
 
+compile_shader = (gl, type, source) => {
+    let v = gl.createShader(type);
+
+    gl.shaderSource(v, source);
+    gl.compileShader(v);
+    console.log(gl.getShaderInfoLog(v));
+
+    return v;
+}
+
+link_shader = (gl, vertex, fragment) => {
+    let p = gl.createProgram();
+
+    gl.attachShader(p, vertex);
+    gl.attachShader(p, fragment);
+
+    gl.linkProgram(p);
+    gl.useProgram(p);
+
+    return p;
+}
+
 window.onload = () => {
     const N = 100;
     const STEP = 100;
@@ -164,4 +205,33 @@ window.onload = () => {
     const elapsed = end - start;
     const elapsedStr = elapsed.toPrecision(5);
     console.log(elapsedStr);
+
+    // WebGL 2.0のテスト
+    const canvas = document.getElementById("webgl");
+    let gl;
+    try {
+        gl = canvas.getContext("webgl2");
+    }
+    catch (e) {
+        console.log("WebGL 2.0 is disabled!");
+    }
+
+    let white = new Float32Array([1.0, 1.0, 1.0, 1.0]);
+    gl.clearBufferfv(gl.COLOR, 0, white);
+
+    const vert = compile_shader(gl, gl.VERTEX_SHADER, v_shader);
+    const frag = compile_shader(gl, gl.FRAGMENT_SHADER, f_shader);
+
+    const program = link_shader(gl, vert, frag);
+
+    let vertex_pos = new Float32Array([0.0, 0.0, 0.0]);
+    let buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_pos.length, gl.STATIC_DRAW);
+
+    gl.drawArrays(gl.POINTS, 0, vertex_pos.length / 3);
+
+    gl.deleteBuffer(buffer);
+    gl.deleteProgram(program);
+
 }
