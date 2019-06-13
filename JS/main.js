@@ -9,6 +9,7 @@ in vec3 a; \n\
 \n\
 void main(void) { \n\
     gl_Position = vec4(a, 1.0);\n\
+    gl_PointSize = 2.0;\n\
 } \n\
 ";
 
@@ -168,7 +169,7 @@ compile_shader = (gl, type, source) => {
 
     gl.shaderSource(v, source);
     gl.compileShader(v);
-    console.log(gl.getShaderInfoLog(v));
+   console.log(gl.getShaderInfoLog(v));
 
     return v;
 }
@@ -224,12 +225,22 @@ window.onload = () => {
 
     const program = link_shader(gl, vert, frag);
 
-    let vertex_pos = new Float32Array([0.0, 0.0, 0.0]);
+    let pos = [];
+    for (let i = 0; i < 100; i++) {
+        pos.push((Math.random() * 2.0) - 1.0);
+        pos.push((Math.random() * 2.0) - 1.0);
+        pos.push(0.0);
+    }
+    let vertex_pos = new Float32Array(pos);
     let buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_pos.length, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_pos, gl.STATIC_DRAW, 0);
 
-    gl.drawArrays(gl.POINTS, 0, vertex_pos.length / 3);
+    let a = gl.getAttribLocation(program, "a");
+    gl.enableVertexAttribArray(a);
+    gl.vertexAttribPointer(a, 3, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(gl.POINTS, 0, 100);
 
     gl.deleteBuffer(buffer);
     gl.deleteProgram(program);
