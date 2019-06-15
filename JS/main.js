@@ -3,6 +3,7 @@ const TIME_STEP = 1.0e-3;
 
 let points = [];
 let force_list = [];
+let force;
 
 const v_shader = "#version 300 es \n\
 in vec3 a; \n\
@@ -22,6 +23,46 @@ out vec4 color;\n\
 void main(void) { \n\
     color = vec4(0.0, 0.0, 0.0, 1.0); \n\
 } \n\
+";
+
+const compute_force_shader = "#version 300 es \n\
+\n\
+in vec3 p;\n\
+in float m;\n\
+out vec3 force;\n\
+uniform sampler2D old_force;\n\
+const float G = 6.67408e-11;\n\
+\n\
+void main(void) {\n\
+    ivec2 size = textureSize(old_force, 0);\n\
+    vec3 f = vec3(0.0, 0.0, 0.0);\n\
+    \n\
+    for (int i = 0; i < size.x; i++) {\n\
+        if (gl_VertexID == i) {\n\
+            continue;\n\
+        }\n\
+        \n\
+        vec2 pos = vec2((2.0 * float(i)) - 1.0, 0.0);\n\
+        vec4 j_pos = texture(old_force, pos);\n\
+        \n\
+        vec3 distance = j_pos.xyz - p;\n\
+        float invnorm = 1.0 / pow(sqrt(dot(distance, distance)), 3.0);\n\
+        f += G * m * invnorm * distance;\n\
+    }\n\
+    \n\
+    force = f;\n\
+}\n\
+"
+
+const f_shader_nop = "#version 300 es \n\
+\n\
+precision mediump float;\n\
+\n\
+out vec4 o;\n\
+\n\
+void main(void) { \n\
+    o = vec4(1.0, 1.0, 1.0, 1.0);\n\
+}\n\
 ";
 
 class Vec3 {
@@ -167,16 +208,20 @@ let compile_shader = (gl, type, source) => {
 
     gl.shaderSource(v, source);
     gl.compileShader(v);
-   console.log(gl.getShaderInfoLog(v));
+    console.log(gl.getShaderInfoLog(v));
 
     return v;
 }
 
-let link_shader = (gl, vertex, fragment) => {
+let link_shader = (gl, vertex, fragment, tf_list) => {
     let p = gl.createProgram();
 
     gl.attachShader(p, vertex);
     gl.attachShader(p, fragment);
+
+    if (tf_list.length != 0) {
+        gl.transformFeedbackVaryings(p, tf_list, gl.SEPARATE_ATTRIBS);
+    }
 
     gl.linkProgram(p);
     gl.useProgram(p);
@@ -221,7 +266,7 @@ window.onload = () => {
     const vert = compile_shader(gl, gl.VERTEX_SHADER, v_shader);
     const frag = compile_shader(gl, gl.FRAGMENT_SHADER, f_shader);
 
-    const program = link_shader(gl, vert, frag);
+    const program = link_shader(gl, vert, frag, []);
 
     let pos = [];
     for (let i = 0; i < 100; i++) {
@@ -243,4 +288,64 @@ window.onload = () => {
     gl.deleteBuffer(buffer);
     gl.deleteProgram(program);
 
+/*
+    // 重力計算用バーテックスシェーダを使ってみる
+    let transformFeedback = gl.createTransformFeedback();
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
+
+    let vv = compile_shader(gl, gl.VERTEX_SHADER, compute_force_shader);
+    let ff = compile_shader(gl, gl.FRAGMENT_SHADER, f_shader_nop);
+
+    let pp = link_shader(gl, vv, ff, ["force"]);
+
+    let x = [0.0, 0.0, 0.0, 100.0, 0.0, 0.0];
+    let x_float = new Float32Array(x);
+    let buffer = [];
+    buffer.push(gl.createBuffer());
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer[0]);
+    gl.bufferData(gl.ARRAY_BUFFER, x_float, gl.STATIC_DRAW, 0);
+    let p = gl.getAttribLocation(pp, "p");
+    gl.enableVertexAttribArray(p);
+    gl.vertexAttribPointer(p, 3, gl.FLOAT, false, 0, 0);
+
+    let m = [1.0e+10, 1.0e+10];
+    let m_float = new Float32Array(m);
+    buffer.push(gl.createBuffer());
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer[1]);
+    gl.bufferData(gl.ARRAY_BUFFER, m_float, gl.STATIC_DRAW, 0);
+    let mm = gl.getAttribLocation(pp, "m");
+    gl.enableVertexAttribArray(mm);
+    gl.vertexAttribPointer(mm, 1, gl.FLOAT, false, 0, 0);
+
+    force = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let force_float = new Float32Array(force);
+    buffer.push(gl.createBuffer());
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer[2]);
+    gl.bufferData(gl.ARRAY_BUFFER, force_float, gl.STREAM_READ, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer[2]);
+
+    let old_force = force;
+    let old_force_float = new Float32Array(old_force);
+    let tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, m.length, 1, 0, gl.RGB, gl.FLOAT, 
+                  old_force_float);
+    gl.activeTexture(gl.TEXTURE0);
+    let of = gl.getUniformLocation(pp, "old_force");
+    gl.uniform1i(of, 0);
+
+    gl.beginTransformFeedback(gl.POINTS);
+    gl.drawArrays(gl.POINTS, 0, m.length);
+    gl.endTransformFeedback();
+
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer[2]);
+    gl.getBufferSubData(gl.ARRAY_BUFFER, 0, force_float);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+    for (let i = 0; i < force_float.length; i++) {
+        force[i] = force_float[i];
+    }
+*/
 }
