@@ -134,9 +134,7 @@ class Point {
     }
 }
 
-calc_force_vector = (points, force_list) => {
-    let v = new Vec3(0.0 ,0.0, 0.0);
-
+let calc_force_vector = (points, force_list) => {
     for(let i = 0; i < points.length; i++) {
         force_list.push(new Vec3(0.0, 0.0, 0.0));
         force_list[i].set(0.0, 0.0, 0.0);
@@ -145,18 +143,18 @@ calc_force_vector = (points, force_list) => {
                 continue;
             }
 
-            distance = Vec3.sub(points[j].getP(), points[i].getP());
-            norm = Math.pow(Math.sqrt(Vec3.dot(distance, distance)), 3.0);
+            let distance = Vec3.sub(points[j].getP(), points[i].getP());
+            let norm = Math.pow(Math.sqrt(Vec3.dot(distance, distance)), 3.0);
             force_list[i].add(Vec3.mul(1.0 / norm, Vec3.mul(G * points[j].getM(), distance)));
         }
     }
 }
 
-leap_flog = (force_list, points) => {
+let leap_flog = (force_list, points) => {
     for (let i = 0; i < points.length; i++) {
         let pp_half = Vec3.add(points[i].getV(), Vec3.mul(TIME_STEP / 2.0, points[i].getA()));
-        pp_x = Vec3.add(points[i].getP(), Vec3.mul(TIME_STEP, pp_half));
-        pp_v = Vec3.add(points[i].getV(), Vec3.mul(TIME_STEP * 2.0, force_list[i]));
+        let pp_x = Vec3.add(points[i].getP(), Vec3.mul(TIME_STEP, pp_half));
+        let pp_v = Vec3.add(points[i].getV(), Vec3.mul(TIME_STEP * 2.0, force_list[i]));
 
         points[i].setA(force_list[i]);
         points[i].setV(pp_v);
@@ -164,7 +162,7 @@ leap_flog = (force_list, points) => {
     }
 }
 
-compile_shader = (gl, type, source) => {
+let compile_shader = (gl, type, source) => {
     let v = gl.createShader(type);
 
     gl.shaderSource(v, source);
@@ -174,7 +172,7 @@ compile_shader = (gl, type, source) => {
     return v;
 }
 
-link_shader = (gl, vertex, fragment) => {
+let link_shader = (gl, vertex, fragment) => {
     let p = gl.createProgram();
 
     gl.attachShader(p, vertex);
