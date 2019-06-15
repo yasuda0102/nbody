@@ -109,3 +109,9 @@ venv.bak/
 # execution file
 Force
 a.out
+
+#ESLint
+node_modules
+.eslintrc.js
+package-lock.json
+package.json
