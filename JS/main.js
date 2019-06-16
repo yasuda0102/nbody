@@ -5,26 +5,6 @@ let points = [];
 let force_list = [];
 let force;
 
-const v_shader = "#version 300 es \n\
-in vec3 a; \n\
-\n\
-void main(void) { \n\
-    gl_Position = vec4(a, 1.0);\n\
-    gl_PointSize = 2.0;\n\
-} \n\
-";
-
-const f_shader = "#version 300 es \n\
-\n\
-precision mediump float;\n\
-\n\
-out vec4 color;\n\
-\n\
-void main(void) { \n\
-    color = vec4(0.0, 0.0, 0.0, 1.0); \n\
-} \n\
-";
-
 const compute_force_shader = "#version 300 es \n\
 \n\
 in vec3 p;\n\
@@ -42,11 +22,12 @@ void main(void) {\n\
             continue;\n\
         }\n\
         \n\
-        vec2 pos = vec2((2.0 * float(i)) - 1.0, 0.0);\n\
-        vec4 j_pos = texture(old_force, pos);\n\
+        ivec2 pos = ivec2(i, 0);\n\
+        vec4 j_pos = texelFetch(old_force, pos, 0);\n\
         \n\
         vec3 distance = j_pos.xyz - p;\n\
-        float invnorm = 1.0 / pow(sqrt(dot(distance, distance)), 3.0);\n\
+        float norm = sqrt(dot(distance, distance));\n\
+        float invnorm = 1.0 / pow(norm, 3.0);\n\
         f += G * m * invnorm * distance;\n\
     }\n\
     \n\
@@ -263,32 +244,6 @@ window.onload = () => {
     let white = new Float32Array([1.0, 1.0, 1.0, 1.0]);
     gl.clearBufferfv(gl.COLOR, 0, white);
 
-    const vert = compile_shader(gl, gl.VERTEX_SHADER, v_shader);
-    const frag = compile_shader(gl, gl.FRAGMENT_SHADER, f_shader);
-
-    const program = link_shader(gl, vert, frag, []);
-
-    let pos = [];
-    for (let i = 0; i < 100; i++) {
-        pos.push((Math.random() * 2.0) - 1.0);
-        pos.push((Math.random() * 2.0) - 1.0);
-        pos.push(0.0);
-    }
-    let vertex_pos = new Float32Array(pos);
-    let buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_pos, gl.STATIC_DRAW, 0);
-
-    let a = gl.getAttribLocation(program, "a");
-    gl.enableVertexAttribArray(a);
-    gl.vertexAttribPointer(a, 3, gl.FLOAT, false, 0, 0);
-
-    gl.drawArrays(gl.POINTS, 0, 100);
-
-    gl.deleteBuffer(buffer);
-    gl.deleteProgram(program);
-
-/*
     // 重力計算用バーテックスシェーダを使ってみる
     let transformFeedback = gl.createTransformFeedback();
     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
@@ -331,6 +286,10 @@ window.onload = () => {
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, m.length, 1, 0, gl.RGB, gl.FLOAT, 
                   old_force_float);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.activeTexture(gl.TEXTURE0);
     let of = gl.getUniformLocation(pp, "old_force");
     gl.uniform1i(of, 0);
@@ -347,5 +306,4 @@ window.onload = () => {
     for (let i = 0; i < force_float.length; i++) {
         force[i] = force_float[i];
     }
-*/
 }
