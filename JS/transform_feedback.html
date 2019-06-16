@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>test</title>
+        <script type="text/javascript" src="transform_feedback.js"></script>
+        <script type="x-shader/x-vertex" id="vs">#version 300 es
+out float a;
+
+void main(void) {
+    a = 10.0;
+}
+        </script>
+        <script type="x-shader/x-fragment" id="fs">#version 300 es
+
+precision mediump float;
+
+out vec4 col;
+
+void main(void) {
+    col = vec4(1.0, 1.0, 1.0, 1.0);
+}
+        </script>
+    </head>
+    <body>
+        <h1>test</h1>
+        <canvas id="canvas" width="500" height="500"></canvas>
+    </body>
+</html>
