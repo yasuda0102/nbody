@@ -10,7 +10,7 @@ N体問題を解くためのPythonプログラムを作る。
 
 100体で100ステップ計算した結果は以下の通り。
 - Python: 13500ms
-- Python + C++: 80ms
+- Python + C++(OpenMPで並列化): 40ms
 - Javascript: 150ms
 
 ## C++ソースのビルド方法 (Ubuntu 18.04)
