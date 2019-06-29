@@ -128,8 +128,12 @@ private:
     vector<Point> point_list;
 
 public:
-    void push(Point p) {
-        point_list.push_back(p);
+    Points(const int size) {
+        this->point_list.resize(size);
+    }
+
+    void push(Point p, int i) {
+        point_list[i] = p;
     }
 
     Point get(int i) const {
@@ -237,7 +241,7 @@ vector<vec3> calc_force_vector(Points &p) {
 Points leap_flog(Points &p, vector<vec3> &force_list) {
     const double TIME_STEP = 10e-3;
 
-    Points pp;
+    Points pp(p.size());
 
     #pragma omp parallel for
     for (int i = 0; i < p.size(); i++) {
@@ -246,7 +250,7 @@ Points leap_flog(Points &p, vector<vec3> &force_list) {
         vec3 pp_v = p.get(i).getV() + (TIME_STEP * 2.0) * force_list[i];
 
         Point new_p(p.get(i).getMass(), force_list[i], pp_v, pp_x);
-        pp.push(new_p);
+        pp.push(new_p, i);
     }
 
     return pp;
@@ -276,7 +280,7 @@ BOOST_PYTHON_MODULE(calc) {
         .def("getV", &Point::getV)
         .def("getP", &Point::getP);
 
-    class_<Points>("Points")
+    class_<Points>("Points", init<const int>())
         .def("push", &Points::push)
         .def("get", &Points::get)
         .def("size", &Points::size)
