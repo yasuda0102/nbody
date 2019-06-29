@@ -5,46 +5,46 @@ let points = [];
 let force_list = [];
 let force;
 
-const compute_force_shader = "#version 300 es \n\
-\n\
-in vec3 p;\n\
-in float m;\n\
-out vec3 force;\n\
-uniform sampler2D old_force;\n\
-const float G = 6.67408e-11;\n\
-\n\
-void main(void) {\n\
-    ivec2 size = textureSize(old_force, 0);\n\
-    vec3 f = vec3(0.0, 0.0, 0.0);\n\
-    \n\
-    for (int i = 0; i < size.x; i++) {\n\
-        if (gl_VertexID == i) {\n\
-            continue;\n\
-        }\n\
-        \n\
-        ivec2 pos = ivec2(i, 0);\n\
-        vec4 j_pos = texelFetch(old_force, pos, 0);\n\
-        \n\
-        vec3 distance = j_pos.xyz - p;\n\
-        float norm = sqrt(dot(distance, distance));\n\
-        float invnorm = 1.0 / pow(norm, 3.0);\n\
-        f += G * m * invnorm * distance;\n\
-    }\n\
-    \n\
-    force = f;\n\
-}\n\
-"
+const compute_force_shader = `#version 300 es
 
-const f_shader_nop = "#version 300 es \n\
-\n\
-precision mediump float;\n\
-\n\
-out vec4 o;\n\
-\n\
-void main(void) { \n\
-    o = vec4(1.0, 1.0, 1.0, 1.0);\n\
-}\n\
-";
+in vec3 p;
+in float m;
+out vec3 force;
+uniform sampler2D old_force;
+const float G = 6.67408e-11;
+
+void main(void) {
+    ivec2 size = textureSize(old_force, 0);
+    vec3 f = vec3(0.0, 0.0, 0.0);
+
+    for (int i = 0; i < size.x; i++) {
+        if (gl_VertexID == i) {
+            continue;
+        }
+
+        ivec2 pos = ivec2(i, 0);
+        vec4 j_pos = texelFetch(old_force, pos, 0);
+
+        vec3 distance = j_pos.xyz - p;
+        float norm = sqrt(dot(distance, distance));
+        float invnorm = 1.0 / pow(norm, 3.0);
+        f += G * m * invnorm * distance;
+    }
+
+    force = f;
+}
+`;
+
+const f_shader_nop = `#version 300 es
+
+precision mediump float;
+
+out vec4 o;
+
+void main(void) {
+    o = vec4(1.0, 1.0, 1.0, 1.0);
+}
+`;
 
 class Vec3 {
     constructor(x, y, z) {
