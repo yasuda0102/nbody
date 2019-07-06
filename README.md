@@ -10,10 +10,10 @@ N体問題を解くためのPythonプログラムを作る。
 
 100体で100ステップ計算した結果は以下の通り。
 - Python: 13500ms
-- Python + C++(OpenMPで並列化): 40ms
+- Python + C++(OpenMPで並列化): 15ms
 - Javascript: 150ms
 
-## C++ソースのビルド方法 (Ubuntu 18.04)
+## C++ソースのビルド方法 (WSL + Ubuntu 18.04)
 ```
 sudo apt install python3-dev libboost-python-dev
 ./compile.sh
