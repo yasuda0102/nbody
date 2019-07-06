@@ -15,7 +15,7 @@ N体問題を解くためのPythonプログラムを作る。
 
 ## C++ソースのビルド方法 (Ubuntu 18.04)
 ```
-sudo apt install libboost-python-dev
+sudo apt install python3-dev libboost-python-dev
 ./compile.sh
 ```
 
