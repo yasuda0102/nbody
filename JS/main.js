@@ -10,11 +10,11 @@ const compute_force_shader = `#version 300 es
 in vec3 p;
 in float m;
 out vec3 force;
-uniform sampler2D old_force;
+uniform sampler2D tex_x;
 const float G = 6.67408e-11;
 
 void main(void) {
-    ivec2 size = textureSize(old_force, 0);
+    ivec2 size = textureSize(tex_x, 0);
     vec3 f = vec3(0.0, 0.0, 0.0);
 
     for (int i = 0; i < size.x; i++) {
@@ -23,7 +23,7 @@ void main(void) {
         }
 
         ivec2 pos = ivec2(i, 0);
-        vec4 j_pos = texelFetch(old_force, pos, 0);
+        vec4 j_pos = texelFetch(tex_x, pos, 0);
 
         vec3 distance = j_pos.xyz - p;
         float norm = sqrt(dot(distance, distance));
@@ -280,18 +280,17 @@ window.onload = () => {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer[2]);
 
-    let old_force = force;
-    let old_force_float = new Float32Array(old_force);
+    let x_tex_float = x_float;
     let tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, m.length, 1, 0, gl.RGB, gl.FLOAT, 
-                  old_force_float);
+                  x_tex_float);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.activeTexture(gl.TEXTURE0);
-    let of = gl.getUniformLocation(pp, "old_force");
+    let of = gl.getUniformLocation(pp, "tex_x");
     gl.uniform1i(of, 0);
 
     gl.beginTransformFeedback(gl.POINTS);
