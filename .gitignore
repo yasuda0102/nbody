@@ -112,6 +112,6 @@ a.out
 
 #ESLint
 node_modules
-.eslintrc.js
+.eslintrc.json
 package-lock.json
 package.json
