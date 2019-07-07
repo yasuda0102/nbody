@@ -35,6 +35,28 @@ void main(void) {
 }
 `;
 
+const compute_LF_shader = `#version 300 es
+
+in vec3 force;
+in vec3 old_a;
+in vec3 old_v;
+in vec3 old_p;
+out vec3 a;
+out vec3 v;
+out vec3 p;
+const float TIME_STEP = 1.0e-3;
+
+void main(void) {
+    vec3 pp_half = old_v + (TIME_STEP / 2.0) * old_a;
+    vec3 pp_x = old_p + TIME_STEP * pp_half;
+    vec3 pp_v = old_v + (TIME_STEP * 2.0) * force;
+
+    a = force;
+    v = pp_v;
+    x = pp_x;
+}
+`;
+
 const f_shader_nop = `#version 300 es
 
 precision mediump float;
