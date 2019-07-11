@@ -313,12 +313,12 @@ window.onload = () => {
     let v_buffer = [];
     let a_buffer = [];
     let m_buffer = transfer_data(gl, pp, m, 1, "m", gl.STATIC_DRAW);
-    p_buffer[0] = transfer_data(gl, pp, p, 3, "old_a", gl.STATIC_DRAW);
-    v_buffer[0] = transfer_data(gl, pp, v, 3, "old_v", gl.STATIC_DRAW);
     a_buffer[0] = transfer_data(gl, pp, a, 3, "old_a", gl.STATIC_DRAW);
-    p_buffer[1] = transfer_data(gl, pp, p, 3, null, gl.STREAM_READ);
-    v_buffer[1] = transfer_data(gl, pp, v, 3, null, gl.STREAM_READ);
+    v_buffer[0] = transfer_data(gl, pp, v, 3, "old_v", gl.STATIC_DRAW);
+    p_buffer[0] = transfer_data(gl, pp, p, 3, "old_p", gl.STATIC_DRAW);
     a_buffer[1] = transfer_data(gl, pp, a, 3, null, gl.STREAM_READ);
+    v_buffer[1] = transfer_data(gl, pp, v, 3, null, gl.STREAM_READ);
+    p_buffer[1] = transfer_data(gl, pp, p, 3, null, gl.STREAM_READ);
     let p_texture = transfer_texdata(gl, pp, p, 3, gl.RGB32F, gl.RGB, gl.FLOAT, "tex_p");
 
     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, a_buffer[1]);
