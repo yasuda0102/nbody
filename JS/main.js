@@ -7,53 +7,45 @@ let force;
 
 const compute_force_shader = `#version 300 es
 
-in vec3 p;
 in float m;
-out vec3 force;
-uniform sampler2D tex_x;
+in vec3 old_a;
+in vec3 old_v;
+in vec3 old_p;
+out vec3 new_a;
+out vec3 new_v;
+out vec3 new_p;
+uniform sampler2D tex_p;
+
 const float G = 6.67408e-11;
+const float TIME_STEP = 1.0e-3;
 
 void main(void) {
-    ivec2 size = textureSize(tex_x, 0);
+    ivec2 size = textureSize(tex_p, 0);
     vec3 f = vec3(0.0, 0.0, 0.0);
 
+    // 万有引力計算
     for (int i = 0; i < size.x; i++) {
         if (gl_VertexID == i) {
             continue;
         }
 
         ivec2 pos = ivec2(i, 0);
-        vec4 j_pos = texelFetch(tex_x, pos, 0);
+        vec4 j_pos = texelFetch(tex_p, pos, 0);
 
-        vec3 distance = j_pos.xyz - p;
+        vec3 distance = j_pos.xyz - old_p;
         float norm = sqrt(dot(distance, distance));
         float invnorm = 1.0 / pow(norm, 3.0);
         f += G * m * invnorm * distance;
     }
 
-    force = f;
-}
-`;
+    // リープフロッグ法
+    vec3 pp_half = old_v + vec3(TIME_STEP / 2.0) * old_a;
+    vec3 pp_p = old_p + TIME_STEP * pp_half;
+    vec3 pp_v = old_v + (TIME_STEP * 2.0) * f;
 
-const compute_LF_shader = `#version 300 es
-
-in vec3 force;
-in vec3 old_a;
-in vec3 old_v;
-in vec3 old_p;
-out vec3 a;
-out vec3 v;
-out vec3 p;
-const float TIME_STEP = 1.0e-3;
-
-void main(void) {
-    vec3 pp_half = old_v + (TIME_STEP / 2.0) * old_a;
-    vec3 pp_x = old_p + TIME_STEP * pp_half;
-    vec3 pp_v = old_v + (TIME_STEP * 2.0) * force;
-
-    a = force;
-    v = pp_v;
-    x = pp_x;
+    new_a = f;
+    new_v = pp_v;
+    new_p = pp_p;
 }
 `;
 
@@ -232,6 +224,42 @@ let link_shader = (gl, vertex, fragment, tf_list) => {
     return p;
 }
 
+let transfer_data = (gl, program, list, dimension, attribstr, mode) => {
+    let f32 = new Float32Array(list);
+
+    let buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, f32, mode, 0);
+    
+    if (attribstr != null) {
+        let location = gl.getAttribLocation(program, attribstr);
+        gl.enableVertexAttribArray(location);
+        gl.vertexAttribPointer(location, dimension, gl.FLOAT, false, 0, 0);
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+    return buffer;
+}
+
+let transfer_texdata = (gl, program, list, dimension, iformat, format, type, attribstr) => {
+    let f32 = new Float32Array(list);
+
+    let tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, iformat, f32.length / dimension, 1, 0, format, type,
+                  f32);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.activeTexture(gl.TEXTURE0);
+    let of = gl.getUniformLocation(program, attribstr);
+    gl.uniform1i(of, 0);
+
+    return tex;
+}
+
 window.onload = () => {
     const N = 100;
     const STEP = 100;
@@ -273,58 +301,44 @@ window.onload = () => {
     let vv = compile_shader(gl, gl.VERTEX_SHADER, compute_force_shader);
     let ff = compile_shader(gl, gl.FRAGMENT_SHADER, f_shader_nop);
 
-    let pp = link_shader(gl, vv, ff, ["force"]);
+    let pp = link_shader(gl, vv, ff, ["new_a", "new_v", "new_p"]);
 
-    let x = [0.0, 0.0, 0.0, 100.0, 0.0, 0.0];
-    let x_float = new Float32Array(x);
-    let buffer = [];
-    buffer.push(gl.createBuffer());
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer[0]);
-    gl.bufferData(gl.ARRAY_BUFFER, x_float, gl.STATIC_DRAW, 0);
-    let p = gl.getAttribLocation(pp, "p");
-    gl.enableVertexAttribArray(p);
-    gl.vertexAttribPointer(p, 3, gl.FLOAT, false, 0, 0);
-
+    let p = [0.0, 0.0, 0.0, 100.0, 0.0, 0.0];
+    let v = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let a = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let m = [1.0e+10, 1.0e+10];
-    let m_float = new Float32Array(m);
-    buffer.push(gl.createBuffer());
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer[1]);
-    gl.bufferData(gl.ARRAY_BUFFER, m_float, gl.STATIC_DRAW, 0);
-    let mm = gl.getAttribLocation(pp, "m");
-    gl.enableVertexAttribArray(mm);
-    gl.vertexAttribPointer(mm, 1, gl.FLOAT, false, 0, 0);
-
     force = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    let force_float = new Float32Array(force);
-    buffer.push(gl.createBuffer());
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer[2]);
-    gl.bufferData(gl.ARRAY_BUFFER, force_float, gl.STREAM_READ, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer[2]);
 
-    let x_tex_float = x_float;
-    let tex = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, m.length, 1, 0, gl.RGB, gl.FLOAT, 
-                  x_tex_float);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.activeTexture(gl.TEXTURE0);
-    let of = gl.getUniformLocation(pp, "tex_x");
-    gl.uniform1i(of, 0);
+    let p_buffer = [];
+    let v_buffer = [];
+    let a_buffer = [];
+    let m_buffer = transfer_data(gl, pp, m, 1, "m", gl.STATIC_DRAW);
+    p_buffer[0] = transfer_data(gl, pp, p, 3, "old_a", gl.STATIC_DRAW);
+    v_buffer[0] = transfer_data(gl, pp, v, 3, "old_v", gl.STATIC_DRAW);
+    a_buffer[0] = transfer_data(gl, pp, a, 3, "old_a", gl.STATIC_DRAW);
+    p_buffer[1] = transfer_data(gl, pp, p, 3, null, gl.STREAM_READ);
+    v_buffer[1] = transfer_data(gl, pp, v, 3, null, gl.STREAM_READ);
+    a_buffer[1] = transfer_data(gl, pp, a, 3, null, gl.STREAM_READ);
+    let p_texture = transfer_texdata(gl, pp, p, 3, gl.RGB32F, gl.RGB, gl.FLOAT, "tex_p");
+
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, a_buffer[1]);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, v_buffer[1]);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, p_buffer[1]);
 
     gl.beginTransformFeedback(gl.POINTS);
     gl.drawArrays(gl.POINTS, 0, m.length);
     gl.endTransformFeedback();
 
     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer[2]);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, null);
+    gl.bindBuffer(gl.ARRAY_BUFFER, a_buffer[1]);
+    let force_float = new Float32Array(force);
     gl.getBufferSubData(gl.ARRAY_BUFFER, 0, force_float);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
     for (let i = 0; i < force_float.length; i++) {
         force[i] = force_float[i];
     }
+
 }
