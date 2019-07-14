@@ -15,7 +15,13 @@ void main(void) {
 	old_a = texelFetch(a, tex_index, 0);
 
 	float max = float(textureSize(p, 0).x);
-	float x_coord = (index / max) * 2.0 - 1.0;
+	float x_coord = (index / (max - 1.0)) * 2.0 - 1.0;
+	if (x_coord <= 0.0) {
+		x_coord += 1.0 / max;
+	}
+	else {
+		x_coord -= 1.0 / max;
+	}
 	gl_Position = vec4(x_coord, 0.0, 0.0, 1.0);
 }
 `;
@@ -75,14 +81,20 @@ window.onload = () => {
 	// floatのテクスチャを有効にする
 	if (gl.getExtension("OES_texture_float_linear") == null) {
 		console.log("OES_texture_float_linear is not supported!");
+		return;
 	}
 	if (gl.getExtension("EXT_color_buffer_float") == null) {
 		console.log("EXT_color_buffer_float is not supported!");
+		return;
 	}
 	
 	// 背景を白にする
 	let white: number[] = [1.0, 1.0, 1.0, 1.0];
 	gl.clearBufferfv(gl.COLOR, 0, white);
+
+	// Transform Feedbackを使う
+	let transform_feedback: WebGLTransformFeedback = gl.createTransformFeedback();
+	gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transform_feedback);
 
 	// データを用意する
 	let index: number[] = [0.0, 1.0];
@@ -115,13 +127,14 @@ window.onload = () => {
 	gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pp_tex[1], 0);
 	gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vv_tex[1], 0);
 	gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, aa_tex[1], 0);
+	gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
 
 	// シェーダをコンパイル
 	let vs: WebGLShader = compile_shader(gl, gl.VERTEX_SHADER, vertex_shader);
 	let fs: WebGLShader = compile_shader(gl, gl.FRAGMENT_SHADER, fragment_shader);
 
 	// シェーダをリンク・使用する
-	let program: WebGLProgram = link_shader(gl, vs, fs);
+	let program: WebGLProgram = link_shader(gl, vs, fs, ["gl_Position", "old_p"]);
 
 	// in変数をVBOと関連付ける
 	let index_buffer: WebGLBuffer = gl.createBuffer();
@@ -158,10 +171,40 @@ window.onload = () => {
 	gl.uniform1i(gl.getUniformLocation(program, "global_p"), 4);
 	gl.bindTexture(gl.TEXTURE_2D, null);
 
-	// 描画命令
-	gl.drawArrays(gl.POINTS, 0, mm.length);
+	// Transform Feedback用のVBOを用意する
+	let buffer_gl_Position: WebGLBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_gl_Position);
+	gl.bufferData(gl.ARRAY_BUFFER, 100, gl.STREAM_READ);
 
-	// 読み出し
+	let buffer_old_p: WebGLBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_old_p);
+	gl.bufferData(gl.ARRAY_BUFFER, 100, gl.STREAM_READ);
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer_gl_Position);
+	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, buffer_old_p);
+
+	// 描画命令
+	gl.viewport(0, 0, 2, 1);
+	gl.beginTransformFeedback(gl.POINTS);
+	gl.drawArrays(gl.POINTS, 0, index.length);
+	gl.endTransformFeedback();
+
+	// VBOから読み出し
+	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+	let f32_gl_Position: Float32Array = new Float32Array(8);
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_gl_Position);
+	gl.getBufferSubData(gl.ARRAY_BUFFER, 0, f32_gl_Position);
+	let f32_old_p: Float32Array = new Float32Array(8);
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_old_p);
+	gl.getBufferSubData(gl.ARRAY_BUFFER, 0, f32_old_p);
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+	
+	console.log(f32_gl_Position);
+	console.log(f32_old_p);
+
+	// フレームバッファから読み出し
 	gl.readBuffer(gl.COLOR_ATTACHMENT0);
 	let reading_buffer: Float32Array = new Float32Array(8);
 	gl.readPixels(0, 0, 2, 1, gl.RGBA, gl.FLOAT, reading_buffer);
@@ -192,11 +235,15 @@ function compile_shader(gl: WebGL2RenderingContext, type: number, source: string
 	return s;
 }
 
-function link_shader(gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShader): WebGLProgram {
+function link_shader(gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShader, tf_list: string[]): WebGLProgram {
 	let p: WebGLProgram = gl.createProgram();
 
 	gl.attachShader(p, vs);
 	gl.attachShader(p, fs);
+
+	if (tf_list != null) {
+		gl.transformFeedbackVaryings(p, tf_list, gl.SEPARATE_ATTRIBS);
+	}
 
 	gl.linkProgram(p);
 	gl.useProgram(p);
