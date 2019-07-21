@@ -27,7 +27,7 @@ window.onload = function () {
     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transform_feedback);
     // データを用意する
     var index = [0.0, 1.0];
-    var p = [0.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 0.0];
+    var p = [0.0, 0.0, 0.0, 1.0, 100.0, 0.0, 0.0, 1.0];
     var v = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     var a = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     var m = [1.0e+10, 1.0e+10];
@@ -41,13 +41,13 @@ window.onload = function () {
     var vv_tex = [];
     var aa_tex = [];
     var mm_tex = [];
-    pp_tex[0] = transfer_data(gl, pp, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
-    vv_tex[0] = transfer_data(gl, vv, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
-    aa_tex[0] = transfer_data(gl, aa, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+    pp_tex[0] = transfer_data(gl, pp, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+    vv_tex[0] = transfer_data(gl, vv, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+    aa_tex[0] = transfer_data(gl, aa, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
     mm_tex[0] = transfer_data(gl, mm, 1, gl.R32F, gl.RED, gl.FLOAT);
-    pp_tex[1] = transfer_data(gl, pp, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
-    vv_tex[1] = transfer_data(gl, vv, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
-    aa_tex[1] = transfer_data(gl, aa, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+    pp_tex[1] = transfer_data(gl, pp, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+    vv_tex[1] = transfer_data(gl, vv, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+    aa_tex[1] = transfer_data(gl, aa, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
     // テクスチャをレンダーターゲットに指定
     var f = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, f);
@@ -69,26 +69,21 @@ window.onload = function () {
     gl.vertexAttribPointer(location, 1, gl.FLOAT, false, 0, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     // uniform変数とテクスチャを関連付ける
-    gl.bindTexture(gl.TEXTURE_2D, pp_tex[0]);
     gl.activeTexture(gl.TEXTURE0);
-    gl.uniform1i(gl.getUniformLocation(program, "p"), 0);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.bindTexture(gl.TEXTURE_2D, vv_tex[0]);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.uniform1i(gl.getUniformLocation(program, "v"), 1);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.bindTexture(gl.TEXTURE_2D, aa_tex[0]);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.uniform1i(gl.getUniformLocation(program, "a"), 2);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.bindTexture(gl.TEXTURE_2D, mm_tex[0]);
-    gl.activeTexture(gl.TEXTURE3);
-    gl.uniform1i(gl.getUniformLocation(program, "m"), 3);
-    gl.bindTexture(gl.TEXTURE_2D, null);
     gl.bindTexture(gl.TEXTURE_2D, pp_tex[0]);
+    gl.uniform1i(gl.getUniformLocation(program, "p"), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, vv_tex[0]);
+    gl.uniform1i(gl.getUniformLocation(program, "v"), 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, aa_tex[0]);
+    gl.uniform1i(gl.getUniformLocation(program, "a"), 2);
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, mm_tex[0]);
+    gl.uniform1i(gl.getUniformLocation(program, "m"), 3);
     gl.activeTexture(gl.TEXTURE4);
+    gl.bindTexture(gl.TEXTURE_2D, pp_tex[0]);
     gl.uniform1i(gl.getUniformLocation(program, "global_p"), 4);
-    gl.bindTexture(gl.TEXTURE_2D, null);
     // Transform Feedback用のVBOを用意する
     var buffer_gl_Position = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer_gl_Position);
@@ -117,7 +112,7 @@ window.onload = function () {
     console.log(f32_gl_Position);
     console.log(f32_old_p);
     // フレームバッファから読み出し
-    gl.readBuffer(gl.COLOR_ATTACHMENT0);
+    gl.readBuffer(gl.COLOR_ATTACHMENT2);
     var reading_buffer = new Float32Array(8);
     gl.readPixels(0, 0, 2, 1, gl.RGBA, gl.FLOAT, reading_buffer);
     console.log(reading_buffer);

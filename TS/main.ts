@@ -98,7 +98,7 @@ window.onload = () => {
 
 	// データを用意する
 	let index: number[] = [0.0, 1.0];
-	let p: number[] = [0.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 0.0];
+	let p: number[] = [0.0, 0.0, 0.0, 1.0, 100.0, 0.0, 0.0, 1.0];
 	let v: number[] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 	let a: number[] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 	let m: number[] = [1.0e+10, 1.0e+10];
@@ -113,13 +113,13 @@ window.onload = () => {
 	let vv_tex: WebGLTexture[] = [];
 	let aa_tex: WebGLTexture[] = [];
 	let mm_tex: WebGLTexture[] = [];
-	pp_tex[0] = transfer_data(gl, pp, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
-	vv_tex[0] = transfer_data(gl, vv, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
-	aa_tex[0] = transfer_data(gl, aa, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+	pp_tex[0] = transfer_data(gl, pp, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+	vv_tex[0] = transfer_data(gl, vv, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+	aa_tex[0] = transfer_data(gl, aa, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
 	mm_tex[0] = transfer_data(gl, mm, 1, gl.R32F, gl.RED, gl.FLOAT);
-	pp_tex[1] = transfer_data(gl, pp, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
-	vv_tex[1] = transfer_data(gl, vv, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
-	aa_tex[1] = transfer_data(gl, aa, 3, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+	pp_tex[1] = transfer_data(gl, pp, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+	vv_tex[1] = transfer_data(gl, vv, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+	aa_tex[1] = transfer_data(gl, aa, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
 
 	// テクスチャをレンダーターゲットに指定
 	let f: WebGLFramebuffer = gl.createFramebuffer();
@@ -146,30 +146,25 @@ window.onload = () => {
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
 	// uniform変数とテクスチャを関連付ける
-	gl.bindTexture(gl.TEXTURE_2D, pp_tex[0]);
 	gl.activeTexture(gl.TEXTURE0);
-	gl.uniform1i(gl.getUniformLocation(program, "p"), 0);
-	gl.bindTexture(gl.TEXTURE_2D, null);
-
-	gl.bindTexture(gl.TEXTURE_2D, vv_tex[0]);
-	gl.activeTexture(gl.TEXTURE1);
-	gl.uniform1i(gl.getUniformLocation(program, "v"), 1);
-	gl.bindTexture(gl.TEXTURE_2D, null);
-
-	gl.bindTexture(gl.TEXTURE_2D, aa_tex[0]);
-	gl.activeTexture(gl.TEXTURE2);
-	gl.uniform1i(gl.getUniformLocation(program, "a"), 2);
-	gl.bindTexture(gl.TEXTURE_2D, null);
-
-	gl.bindTexture(gl.TEXTURE_2D, mm_tex[0]);
-	gl.activeTexture(gl.TEXTURE3);
-	gl.uniform1i(gl.getUniformLocation(program, "m"), 3);
-	gl.bindTexture(gl.TEXTURE_2D, null);
-
 	gl.bindTexture(gl.TEXTURE_2D, pp_tex[0]);
+	gl.uniform1i(gl.getUniformLocation(program, "p"), 0);
+
+	gl.activeTexture(gl.TEXTURE1);
+	gl.bindTexture(gl.TEXTURE_2D, vv_tex[0]);
+	gl.uniform1i(gl.getUniformLocation(program, "v"), 1);
+
+	gl.activeTexture(gl.TEXTURE2);
+	gl.bindTexture(gl.TEXTURE_2D, aa_tex[0]);
+	gl.uniform1i(gl.getUniformLocation(program, "a"), 2);
+
+	gl.activeTexture(gl.TEXTURE3);
+	gl.bindTexture(gl.TEXTURE_2D, mm_tex[0]);
+	gl.uniform1i(gl.getUniformLocation(program, "m"), 3);
+
 	gl.activeTexture(gl.TEXTURE4);
+	gl.bindTexture(gl.TEXTURE_2D, pp_tex[0]);
 	gl.uniform1i(gl.getUniformLocation(program, "global_p"), 4);
-	gl.bindTexture(gl.TEXTURE_2D, null);
 
 	// Transform Feedback用のVBOを用意する
 	let buffer_gl_Position: WebGLBuffer = gl.createBuffer();
@@ -205,7 +200,7 @@ window.onload = () => {
 	console.log(f32_old_p);
 
 	// フレームバッファから読み出し
-	gl.readBuffer(gl.COLOR_ATTACHMENT0);
+	gl.readBuffer(gl.COLOR_ATTACHMENT2);
 	let reading_buffer: Float32Array = new Float32Array(8);
 	gl.readPixels(0, 0, 2, 1, gl.RGBA, gl.FLOAT, reading_buffer);
 	console.log(reading_buffer);
