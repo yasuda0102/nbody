@@ -92,6 +92,9 @@ window.onload = () => {
 		console.log("EXT_color_buffer_float is not supported!");
 		return;
 	}
+
+	// 定数
+	const N = 128;
 	
 	// 背景を白にする
 	let white: number[] = [1.0, 1.0, 1.0, 1.0];
@@ -107,7 +110,7 @@ window.onload = () => {
 	let v: number[] = [];
 	let a: number[] = [];
 	let m: number[] = [];
-	for (let i = 0; i < 128; i++) {
+	for (let i = 0; i < N; i++) {
 		index.push(i);
 		p.push((Math.random() * 2) - 1);
 		p.push((Math.random() * 2) - 1);
@@ -151,7 +154,7 @@ window.onload = () => {
 	let fs: WebGLShader = compile_shader(gl, gl.FRAGMENT_SHADER, fragment_shader);
 
 	// シェーダをリンク・使用する
-	let program: WebGLProgram = link_shader(gl, vs, fs, ["gl_Position", "old_p"]);
+	let program: WebGLProgram = link_shader(gl, vs, fs, ["old_p"]);
 
 	// in変数をVBOと関連付ける
 	let index_buffer: WebGLBuffer = gl.createBuffer();
@@ -183,44 +186,82 @@ window.onload = () => {
 	gl.bindTexture(gl.TEXTURE_2D, pp_tex[0]);
 	gl.uniform1i(gl.getUniformLocation(program, "global_p"), 4);
 
-	// Transform Feedback用のVBOを用意する
-	let buffer_gl_Position: WebGLBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_gl_Position);
-	gl.bufferData(gl.ARRAY_BUFFER, pp, gl.STREAM_READ);
-
-	let buffer_old_p: WebGLBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_old_p);
+	// Transform Feedback用のバッファを用意する
+	let old_p_buffer: WebGLBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
 	gl.bufferData(gl.ARRAY_BUFFER, pp, gl.STREAM_READ);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer_gl_Position);
-	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, buffer_old_p);
+	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, old_p_buffer);
 
 	// 描画命令
-	gl.viewport(0, 0, 128, 1);
-	gl.beginTransformFeedback(gl.POINTS);
+	gl.viewport(0, 0, N, 1);
 	gl.drawArrays(gl.POINTS, 0, index.length);
-	gl.endTransformFeedback();
+	gl.flush();
 
-	// VBOから読み出し
-	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
-	let f32_gl_Position: Float32Array = new Float32Array(128 * 4);
-	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_gl_Position);
-	gl.getBufferSubData(gl.ARRAY_BUFFER, 0, f32_gl_Position);
-	let f32_old_p: Float32Array = new Float32Array(128 * 4);
-	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_old_p);
-	gl.getBufferSubData(gl.ARRAY_BUFFER, 0, f32_old_p);
-	gl.bindBuffer(gl.ARRAY_BUFFER, null);
-	
-	console.log(f32_gl_Position);
-	console.log(f32_old_p);
+	let n: number = 0;
+	swapping();
 
-	// フレームバッファから読み出し
-	gl.readBuffer(gl.COLOR_ATTACHMENT2);
-	let reading_buffer: Float32Array = new Float32Array(128 * 4);
-	gl.readPixels(0, 0, 128, 1, gl.RGBA, gl.FLOAT, reading_buffer);
-	console.log(reading_buffer);
+	function swapping() {
+
+		// 背景を白にする
+		let white: number[] = [1.0, 1.0, 1.0, 1.0];
+		gl.clearBufferfv(gl.COLOR, 0, white);
+
+		// テクスチャをレンダーターゲットに指定
+		gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pp_tex[n % 2], 0);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vv_tex[n % 2], 0);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, aa_tex[n % 2], 0);
+		gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
+
+		// uniform変数とテクスチャを関連付ける
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, pp_tex[(n % 2)?0:1]);
+		gl.uniform1i(gl.getUniformLocation(program, "p"), 0);
+
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, vv_tex[(n % 2)?0:1]);
+		gl.uniform1i(gl.getUniformLocation(program, "v"), 1);
+
+		gl.activeTexture(gl.TEXTURE2);
+		gl.bindTexture(gl.TEXTURE_2D, aa_tex[(n % 2)?0:1]);
+		gl.uniform1i(gl.getUniformLocation(program, "a"), 2);
+
+		gl.activeTexture(gl.TEXTURE3);
+		gl.bindTexture(gl.TEXTURE_2D, mm_tex[(n % 2)?0:1]);
+		gl.uniform1i(gl.getUniformLocation(program, "m"), 3);
+
+		gl.activeTexture(gl.TEXTURE4);
+		gl.bindTexture(gl.TEXTURE_2D, pp_tex[(n % 2)?0:1]);
+		gl.uniform1i(gl.getUniformLocation(program, "global_p"), 4);
+
+		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, old_p_buffer);
+
+		// 描画命令
+		gl.viewport(0, 0, N, 1);
+		gl.beginTransformFeedback(gl.POINTS);
+		gl.drawArrays(gl.POINTS, 0, index.length);
+		gl.endTransformFeedback();
+		gl.flush();
+
+		// n - 1ステップの変位を取得
+		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+		gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
+		let pn_1: Float32Array = new Float32Array(p);
+		gl.getBufferSubData(gl.ARRAY_BUFFER, 0, pn_1);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		console.log(pn_1);
+
+		// フレームバッファから読み出し
+		gl.readBuffer(gl.COLOR_ATTACHMENT2);
+		let reading_buffer: Float32Array = new Float32Array(N * 4);
+		gl.readPixels(0, 0, N, 1, gl.RGBA, gl.FLOAT, reading_buffer);
+		console.log(reading_buffer);
+
+		n++;
+
+		requestAnimationFrame(swapping);
+	}
 };
 
 function transfer_data(gl: WebGL2RenderingContext, list: Float32Array, dimension: number, 
