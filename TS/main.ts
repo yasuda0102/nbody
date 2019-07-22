@@ -61,9 +61,14 @@ void main(void) {
 		f += G * mm * invnorm * distance;
 	}
 
-	new_p = vec4(1.0, 1.0, 1.0, 1.0);
-	new_v = vec4(0.0, 0.0, 0.0, 1.0);
-	new_a = vec4(f, 0.0);
+    // リープフロッグ法
+    vec4 pp_half = old_v + vec4(TIME_STEP / 2.0) * old_a;
+    vec4 pp_p = old_p + TIME_STEP * pp_half;
+    vec4 pp_v = old_v + (TIME_STEP * 2.0) * vec4(f, 0.0);
+
+    new_a = vec4(f, 0.0);
+    new_v = pp_v;
+    new_p = pp_p;
 }
 `;
 
@@ -97,11 +102,23 @@ window.onload = () => {
 	gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transform_feedback);
 
 	// データを用意する
-	let index: number[] = [0.0, 1.0];
-	let p: number[] = [0.0, 0.0, 0.0, 1.0, 100.0, 0.0, 0.0, 1.0];
-	let v: number[] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	let a: number[] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	let m: number[] = [1.0e+10, 1.0e+10];
+	let index: number[] = [];
+	let p: number[] = [];
+	let v: number[] = [];
+	let a: number[] = [];
+	let m: number[] = [];
+	for (let i = 0; i < 128; i++) {
+		index.push(i);
+		p.push((Math.random() * 2) - 1);
+		p.push((Math.random() * 2) - 1);
+		p.push(0.0);
+		p.push(1.0);
+		for (let j = 0; j < 4; j++) {
+			v.push(0);
+			a.push(0);
+		}
+		m.push(1.0e+10);
+	}
 	let index_: Float32Array = new Float32Array(index);
 	let pp: Float32Array = new Float32Array(p);
 	let vv: Float32Array = new Float32Array(v);
@@ -169,18 +186,18 @@ window.onload = () => {
 	// Transform Feedback用のVBOを用意する
 	let buffer_gl_Position: WebGLBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_gl_Position);
-	gl.bufferData(gl.ARRAY_BUFFER, 100, gl.STREAM_READ);
+	gl.bufferData(gl.ARRAY_BUFFER, pp, gl.STREAM_READ);
 
 	let buffer_old_p: WebGLBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_old_p);
-	gl.bufferData(gl.ARRAY_BUFFER, 100, gl.STREAM_READ);
+	gl.bufferData(gl.ARRAY_BUFFER, pp, gl.STREAM_READ);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
 	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer_gl_Position);
 	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, buffer_old_p);
 
 	// 描画命令
-	gl.viewport(0, 0, 2, 1);
+	gl.viewport(0, 0, 128, 1);
 	gl.beginTransformFeedback(gl.POINTS);
 	gl.drawArrays(gl.POINTS, 0, index.length);
 	gl.endTransformFeedback();
@@ -188,10 +205,10 @@ window.onload = () => {
 	// VBOから読み出し
 	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
 	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
-	let f32_gl_Position: Float32Array = new Float32Array(8);
+	let f32_gl_Position: Float32Array = new Float32Array(128 * 4);
 	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_gl_Position);
 	gl.getBufferSubData(gl.ARRAY_BUFFER, 0, f32_gl_Position);
-	let f32_old_p: Float32Array = new Float32Array(8);
+	let f32_old_p: Float32Array = new Float32Array(128 * 4);
 	gl.bindBuffer(gl.ARRAY_BUFFER, buffer_old_p);
 	gl.getBufferSubData(gl.ARRAY_BUFFER, 0, f32_old_p);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -201,8 +218,8 @@ window.onload = () => {
 
 	// フレームバッファから読み出し
 	gl.readBuffer(gl.COLOR_ATTACHMENT2);
-	let reading_buffer: Float32Array = new Float32Array(8);
-	gl.readPixels(0, 0, 2, 1, gl.RGBA, gl.FLOAT, reading_buffer);
+	let reading_buffer: Float32Array = new Float32Array(128 * 4);
+	gl.readPixels(0, 0, 128, 1, gl.RGBA, gl.FLOAT, reading_buffer);
 	console.log(reading_buffer);
 };
 
