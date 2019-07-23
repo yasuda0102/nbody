@@ -40,7 +40,7 @@ layout(location = 1) out vec4 new_v;
 layout(location = 2) out vec4 new_a;
 
 const float G = 6.67408e-11;
-const float TIME_STEP = 1.0e-3;
+const float TIME_STEP = 10.0;
 
 void main(void) {
 	ivec2 size = textureSize(global_p, 0);
@@ -64,11 +64,32 @@ void main(void) {
     // リープフロッグ法
     vec4 pp_half = old_v + vec4(TIME_STEP / 2.0) * old_a;
     vec4 pp_p = old_p + TIME_STEP * pp_half;
-    vec4 pp_v = old_v + (TIME_STEP * 2.0) * vec4(f, 0.0);
+	vec4 pp_v = old_v + (TIME_STEP * 2.0) * vec4(f, 0.0);
 
     new_a = vec4(f, 0.0);
     new_v = pp_v;
     new_p = pp_p;
+}
+`;
+
+const vs_display: string = `#version 300 es
+
+in vec4 pp;
+
+void main(void) {
+	gl_Position = pp;
+	gl_PointSize = 4.0;
+}
+`;
+
+const fs_display: string = `#version 300 es
+
+precision mediump float;
+
+out vec4 color;
+
+void main(void) {
+	color = vec4(1.0, 0.0, 0.0, 1.0);
 }
 `;
 
@@ -100,10 +121,6 @@ window.onload = () => {
 	let white: number[] = [1.0, 1.0, 1.0, 1.0];
 	gl.clearBufferfv(gl.COLOR, 0, white);
 
-	// Transform Feedbackを使う
-	let transform_feedback: WebGLTransformFeedback = gl.createTransformFeedback();
-	gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transform_feedback);
-
 	// データを用意する
 	let index: number[] = [];
 	let p: number[] = [];
@@ -120,7 +137,7 @@ window.onload = () => {
 			v.push(0);
 			a.push(0);
 		}
-		m.push(1.0e+10);
+		m.push(1.0e+3);
 	}
 	let index_: Float32Array = new Float32Array(index);
 	let pp: Float32Array = new Float32Array(p);
@@ -141,16 +158,16 @@ window.onload = () => {
 	vv_tex[1] = transfer_data(gl, vv, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
 	aa_tex[1] = transfer_data(gl, aa, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
 
-	// テクスチャをレンダーターゲットに指定
-	let f: WebGLFramebuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, f);
-
 	// シェーダをコンパイル
 	let vs: WebGLShader = compile_shader(gl, gl.VERTEX_SHADER, vertex_shader);
 	let fs: WebGLShader = compile_shader(gl, gl.FRAGMENT_SHADER, fragment_shader);
 
+	let vs_d: WebGLShader = compile_shader(gl, gl.VERTEX_SHADER, vs_display);
+	let fs_d: WebGLShader = compile_shader(gl, gl.FRAGMENT_SHADER, fs_display);
+
 	// シェーダをリンク・使用する
 	let program: WebGLProgram = link_shader(gl, vs, fs, ["old_p"]);
+	let d_program: WebGLProgram = link_shader(gl, vs_d, fs_d, null);
 
 	// in変数をVBOと関連付ける
 	let index_buffer: WebGLBuffer = gl.createBuffer();
@@ -172,6 +189,17 @@ window.onload = () => {
 	swapping();
 
 	function swapping() {
+		// Transform Feedbackを使う
+		let transform_feedback: WebGLTransformFeedback = gl.createTransformFeedback();
+		gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transform_feedback);
+	
+		// GPGPUシェーダを使用
+		gl.useProgram(program);
+
+		// フレームバッファをバインドする
+		let f: WebGLFramebuffer = gl.createFramebuffer();
+		gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+	
 		// テクスチャをレンダーターゲットに指定
 		gl.bindFramebuffer(gl.FRAMEBUFFER, f);
 		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pp_tex[n % 2], 0);
@@ -209,19 +237,27 @@ window.onload = () => {
 		gl.endTransformFeedback();
 		gl.flush();
 
-		// n - 1ステップの変位を取得
-		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-		gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
-		let pn_1: Float32Array = new Float32Array(p);
-		gl.getBufferSubData(gl.ARRAY_BUFFER, 0, pn_1);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
-		console.log(pn_1);
-
-		// // フレームバッファから読み出し
-		// gl.readBuffer(gl.COLOR_ATTACHMENT2);
-		// let reading_buffer: Float32Array = new Float32Array(N * 4);
-		// gl.readPixels(0, 0, N, 1, gl.RGBA, gl.FLOAT, reading_buffer);
+		// フレームバッファから読み出し
+		gl.readBuffer(gl.COLOR_ATTACHMENT0);
+		let reading_buffer: Float32Array = new Float32Array(N * 4);
+		gl.readPixels(0, 0, N, 1, gl.RGBA, gl.FLOAT, reading_buffer);
 		// console.log(reading_buffer);
+
+		// 表示する
+		gl.useProgram(d_program);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+
+		let aaa: WebGLBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, aaa);
+		gl.bufferData(gl.ARRAY_BUFFER, reading_buffer, gl.STATIC_DRAW);
+		let location: number = gl.getAttribLocation(d_program, "pp");
+		gl.enableVertexAttribArray(location);
+		gl.vertexAttribPointer(location, 4, gl.FLOAT, false, 0, 0);
+
+		gl.viewport(0, 0, 500, 500);
+		gl.drawArrays(gl.POINTS, 0, index.length);
 
 		n++;
 
@@ -264,7 +300,6 @@ function link_shader(gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShade
 	}
 
 	gl.linkProgram(p);
-	gl.useProgram(p);
 
 	return p;
 }

@@ -1,5 +1,7 @@
 var vertex_shader = "#version 300 es\n\nin float index;\nout vec4 old_p;\nout vec4 old_v;\nout vec4 old_a;\nuniform sampler2D p;\nuniform sampler2D v;\nuniform sampler2D a;\n\nvoid main(void) {\n\tivec2 tex_index = ivec2(int(index), 0);\n\told_p = texelFetch(p, tex_index, 0);\n\told_v = texelFetch(v, tex_index, 0);\n\told_a = texelFetch(a, tex_index, 0);\n\n\tfloat max = float(textureSize(p, 0).x);\n\tfloat x_coord = (index / (max - 1.0)) * 2.0 - 1.0;\n\tif (x_coord <= 0.0) {\n\t\tx_coord += 1.0 / max;\n\t}\n\telse {\n\t\tx_coord -= 1.0 / max;\n\t}\n\tgl_Position = vec4(x_coord, 0.0, 0.0, 1.0);\n}\n";
-var fragment_shader = "#version 300 es\n\nprecision mediump float;\n\nin vec4 old_p;\nin vec4 old_v;\nin vec4 old_a;\nuniform sampler2D m;\nuniform sampler2D global_p;\nlayout(location = 0) out vec4 new_p;\nlayout(location = 1) out vec4 new_v;\nlayout(location = 2) out vec4 new_a;\n\nconst float G = 6.67408e-11;\nconst float TIME_STEP = 1.0e-3;\n\nvoid main(void) {\n\tivec2 size = textureSize(global_p, 0);\n\tvec3 f = vec3(0.0, 0.0, 0.0);\n\n\t// \u4E07\u6709\u5F15\u529B\u8A08\u7B97\n\tfor (int i = 0; i < size.x; i++) {\n\t\tivec2 pos = ivec2(i, 0);\n\t\tvec4 j_pos = texelFetch(global_p, pos, 0);\n\t\tfloat mm = texelFetch(m, pos, 0).x;\n\n\t\tvec3 distance = j_pos.xyz - old_p.xyz;\n\t\tfloat norm = sqrt(dot(distance, distance));\n\t\tif (norm == 0.0) {\n\t\t\tcontinue;\n\t\t}\n\t\tfloat invnorm = 1.0 / pow(norm, 3.0);\n\t\tf += G * mm * invnorm * distance;\n\t}\n\n    // \u30EA\u30FC\u30D7\u30D5\u30ED\u30C3\u30B0\u6CD5\n    vec4 pp_half = old_v + vec4(TIME_STEP / 2.0) * old_a;\n    vec4 pp_p = old_p + TIME_STEP * pp_half;\n    vec4 pp_v = old_v + (TIME_STEP * 2.0) * vec4(f, 0.0);\n\n    new_a = vec4(f, 0.0);\n    new_v = pp_v;\n    new_p = pp_p;\n}\n";
+var fragment_shader = "#version 300 es\n\nprecision mediump float;\n\nin vec4 old_p;\nin vec4 old_v;\nin vec4 old_a;\nuniform sampler2D m;\nuniform sampler2D global_p;\nlayout(location = 0) out vec4 new_p;\nlayout(location = 1) out vec4 new_v;\nlayout(location = 2) out vec4 new_a;\n\nconst float G = 6.67408e-11;\nconst float TIME_STEP = 10.0;\n\nvoid main(void) {\n\tivec2 size = textureSize(global_p, 0);\n\tvec3 f = vec3(0.0, 0.0, 0.0);\n\n\t// \u4E07\u6709\u5F15\u529B\u8A08\u7B97\n\tfor (int i = 0; i < size.x; i++) {\n\t\tivec2 pos = ivec2(i, 0);\n\t\tvec4 j_pos = texelFetch(global_p, pos, 0);\n\t\tfloat mm = texelFetch(m, pos, 0).x;\n\n\t\tvec3 distance = j_pos.xyz - old_p.xyz;\n\t\tfloat norm = sqrt(dot(distance, distance));\n\t\tif (norm == 0.0) {\n\t\t\tcontinue;\n\t\t}\n\t\tfloat invnorm = 1.0 / pow(norm, 3.0);\n\t\tf += G * mm * invnorm * distance;\n\t}\n\n    // \u30EA\u30FC\u30D7\u30D5\u30ED\u30C3\u30B0\u6CD5\n    vec4 pp_half = old_v + vec4(TIME_STEP / 2.0) * old_a;\n    vec4 pp_p = old_p + TIME_STEP * pp_half;\n\tvec4 pp_v = old_v + (TIME_STEP * 2.0) * vec4(f, 0.0);\n\n    new_a = vec4(f, 0.0);\n    new_v = pp_v;\n    new_p = pp_p;\n}\n";
+var vs_display = "#version 300 es\n\nin vec4 pp;\n\nvoid main(void) {\n\tgl_Position = pp;\n\tgl_PointSize = 4.0;\n}\n";
+var fs_display = "#version 300 es\n\nprecision mediump float;\n\nout vec4 color;\n\nvoid main(void) {\n\tcolor = vec4(1.0, 0.0, 0.0, 1.0);\n}\n";
 window.onload = function () {
     // WebGL 2.0コンテキストを取得する
     var canvas = document.getElementById("webgl");
@@ -24,9 +26,6 @@ window.onload = function () {
     // 背景を白にする
     var white = [1.0, 1.0, 1.0, 1.0];
     gl.clearBufferfv(gl.COLOR, 0, white);
-    // Transform Feedbackを使う
-    var transform_feedback = gl.createTransformFeedback();
-    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transform_feedback);
     // データを用意する
     var index = [];
     var p = [];
@@ -43,7 +42,7 @@ window.onload = function () {
             v.push(0);
             a.push(0);
         }
-        m.push(1.0e+10);
+        m.push(1.0e+3);
     }
     var index_ = new Float32Array(index);
     var pp = new Float32Array(p);
@@ -62,14 +61,14 @@ window.onload = function () {
     pp_tex[1] = transfer_data(gl, pp, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
     vv_tex[1] = transfer_data(gl, vv, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
     aa_tex[1] = transfer_data(gl, aa, 4, gl.RGBA32F, gl.RGBA, gl.FLOAT);
-    // テクスチャをレンダーターゲットに指定
-    var f = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
     // シェーダをコンパイル
     var vs = compile_shader(gl, gl.VERTEX_SHADER, vertex_shader);
     var fs = compile_shader(gl, gl.FRAGMENT_SHADER, fragment_shader);
+    var vs_d = compile_shader(gl, gl.VERTEX_SHADER, vs_display);
+    var fs_d = compile_shader(gl, gl.FRAGMENT_SHADER, fs_display);
     // シェーダをリンク・使用する
     var program = link_shader(gl, vs, fs, ["old_p"]);
+    var d_program = link_shader(gl, vs_d, fs_d, null);
     // in変数をVBOと関連付ける
     var index_buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, index_buffer);
@@ -87,6 +86,14 @@ window.onload = function () {
     var n = 0;
     swapping();
     function swapping() {
+        // Transform Feedbackを使う
+        var transform_feedback = gl.createTransformFeedback();
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transform_feedback);
+        // GPGPUシェーダを使用
+        gl.useProgram(program);
+        // フレームバッファをバインドする
+        var f = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, f);
         // テクスチャをレンダーターゲットに指定
         gl.bindFramebuffer(gl.FRAMEBUFFER, f);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pp_tex[n % 2], 0);
@@ -116,18 +123,24 @@ window.onload = function () {
         gl.drawArrays(gl.POINTS, 0, index.length);
         gl.endTransformFeedback();
         gl.flush();
-        // n - 1ステップの変位を取得
-        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-        gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
-        var pn_1 = new Float32Array(p);
-        gl.getBufferSubData(gl.ARRAY_BUFFER, 0, pn_1);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        console.log(pn_1);
-        // // フレームバッファから読み出し
-        // gl.readBuffer(gl.COLOR_ATTACHMENT2);
-        // let reading_buffer: Float32Array = new Float32Array(N * 4);
-        // gl.readPixels(0, 0, N, 1, gl.RGBA, gl.FLOAT, reading_buffer);
+        // フレームバッファから読み出し
+        gl.readBuffer(gl.COLOR_ATTACHMENT0);
+        var reading_buffer = new Float32Array(N * 4);
+        gl.readPixels(0, 0, N, 1, gl.RGBA, gl.FLOAT, reading_buffer);
         // console.log(reading_buffer);
+        // 表示する
+        gl.useProgram(d_program);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+        var aaa = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, aaa);
+        gl.bufferData(gl.ARRAY_BUFFER, reading_buffer, gl.STATIC_DRAW);
+        var location = gl.getAttribLocation(d_program, "pp");
+        gl.enableVertexAttribArray(location);
+        gl.vertexAttribPointer(location, 4, gl.FLOAT, false, 0, 0);
+        gl.viewport(0, 0, 500, 500);
+        gl.drawArrays(gl.POINTS, 0, index.length);
         n++;
         requestAnimationFrame(swapping);
     }
@@ -158,6 +171,5 @@ function link_shader(gl, vs, fs, tf_list) {
         gl.transformFeedbackVaryings(p, tf_list, gl.SEPARATE_ATTRIBS);
     }
     gl.linkProgram(p);
-    gl.useProgram(p);
     return p;
 }
