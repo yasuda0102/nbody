@@ -4,6 +4,7 @@ in float index;
 out vec4 old_p;
 out vec4 old_v;
 out vec4 old_a;
+out float index_fs;
 uniform sampler2D p;
 uniform sampler2D v;
 uniform sampler2D a;
@@ -23,6 +24,7 @@ void main(void) {
 		x_coord -= 1.0 / max;
 	}
 	gl_Position = vec4(x_coord, 0.0, 0.0, 1.0);
+	index_fs = index;
 }
 `;
 
@@ -30,6 +32,7 @@ let fragment_shader: string = `#version 300 es
 
 precision mediump float;
 
+in float index_fs;
 in vec4 old_p;
 in vec4 old_v;
 in vec4 old_a;
@@ -40,7 +43,7 @@ layout(location = 1) out vec4 new_v;
 layout(location = 2) out vec4 new_a;
 
 const float G = 6.67408e-11;
-const float TIME_STEP = 10.0;
+const float TIME_STEP = 1.0;
 
 void main(void) {
 	ivec2 size = textureSize(global_p, 0);
@@ -48,15 +51,15 @@ void main(void) {
 
 	// 万有引力計算
 	for (int i = 0; i < size.x; i++) {
+		if (i == int(index_fs)) {
+			continue;
+		}
 		ivec2 pos = ivec2(i, 0);
 		vec4 j_pos = texelFetch(global_p, pos, 0);
 		float mm = texelFetch(m, pos, 0).x;
 
 		vec3 distance = j_pos.xyz - old_p.xyz;
 		float norm = sqrt(dot(distance, distance));
-		if (norm == 0.0) {
-			continue;
-		}
 		float invnorm = 1.0 / pow(norm, 3.0);
 		f += G * mm * invnorm * distance;
 	}
@@ -115,7 +118,7 @@ window.onload = () => {
 	}
 
 	// 定数
-	const N = 128;
+	const N = 2;
 	
 	// 背景を白にする
 	let white: number[] = [1.0, 1.0, 1.0, 1.0];
@@ -165,8 +168,8 @@ window.onload = () => {
 	let vs_d: WebGLShader = compile_shader(gl, gl.VERTEX_SHADER, vs_display);
 	let fs_d: WebGLShader = compile_shader(gl, gl.FRAGMENT_SHADER, fs_display);
 
-	// シェーダをリンク・使用する
-	let program: WebGLProgram = link_shader(gl, vs, fs, ["old_p"]);
+	// シェーダをリンクする
+	let program: WebGLProgram = link_shader(gl, vs, fs, ["old_p", "gl_Position"]);
 	let d_program: WebGLProgram = link_shader(gl, vs_d, fs_d, null);
 
 	// in変数をVBOと関連付ける
@@ -184,8 +187,14 @@ window.onload = () => {
 	gl.bufferData(gl.ARRAY_BUFFER, pp, gl.STREAM_READ);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, old_p_buffer);
+	let p_buffer: WebGLBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, p_buffer);
+	gl.bufferData(gl.ARRAY_BUFFER, pp, gl.STREAM_READ);
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, p_buffer);
 
 	let n: number = 0;
+	swapping();
 	swapping();
 
 	function swapping() {
@@ -202,48 +211,63 @@ window.onload = () => {
 	
 		// テクスチャをレンダーターゲットに指定
 		gl.bindFramebuffer(gl.FRAMEBUFFER, f);
-		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pp_tex[n % 2], 0);
-		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vv_tex[n % 2], 0);
-		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, aa_tex[n % 2], 0);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pp_tex[(n % 2)?0:1], 0);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vv_tex[(n % 2)?0:1], 0);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, aa_tex[(n % 2)?0:1], 0);
 		gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
 
 		// uniform変数とテクスチャを関連付ける
 		gl.activeTexture(gl.TEXTURE0);
-		gl.bindTexture(gl.TEXTURE_2D, pp_tex[(n % 2)?0:1]);
+		gl.bindTexture(gl.TEXTURE_2D, pp_tex[(n % 2)?1:0]);
 		gl.uniform1i(gl.getUniformLocation(program, "p"), 0);
 
 		gl.activeTexture(gl.TEXTURE1);
-		gl.bindTexture(gl.TEXTURE_2D, vv_tex[(n % 2)?0:1]);
+		gl.bindTexture(gl.TEXTURE_2D, vv_tex[(n % 2)?1:0]);
 		gl.uniform1i(gl.getUniformLocation(program, "v"), 1);
 
 		gl.activeTexture(gl.TEXTURE2);
-		gl.bindTexture(gl.TEXTURE_2D, aa_tex[(n % 2)?0:1]);
+		gl.bindTexture(gl.TEXTURE_2D, aa_tex[(n % 2)?1:0]);
 		gl.uniform1i(gl.getUniformLocation(program, "a"), 2);
 
 		gl.activeTexture(gl.TEXTURE3);
-		gl.bindTexture(gl.TEXTURE_2D, mm_tex[(n % 2)?0:1]);
+		gl.bindTexture(gl.TEXTURE_2D, mm_tex[0]);
 		gl.uniform1i(gl.getUniformLocation(program, "m"), 3);
 
 		gl.activeTexture(gl.TEXTURE4);
-		gl.bindTexture(gl.TEXTURE_2D, pp_tex[(n % 2)?0:1]);
+		gl.bindTexture(gl.TEXTURE_2D, pp_tex[(n % 2)?1:0]);
 		gl.uniform1i(gl.getUniformLocation(program, "global_p"), 4);
 
+		// Transform Feedbackによるデバッグ
 		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, old_p_buffer);
+		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, p_buffer);
 
 		// 描画命令
 		gl.viewport(0, 0, N, 1);
 		gl.beginTransformFeedback(gl.POINTS);
-		gl.drawArrays(gl.POINTS, 0, index.length);
+		gl.drawArrays(gl.POINTS, 0, N);
 		gl.endTransformFeedback();
 		gl.flush();
+
+		// Transform Feedbackの内容を取り出す
+		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+		gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
+		let tf_buf1 = new Float32Array(p);
+		gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf1);
+		gl.bindBuffer(gl.ARRAY_BUFFER, p_buffer);
+		let tf_buf2 = new Float32Array(p);
+		gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf2);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		//console.log(tf_buf1);
+		console.log(tf_buf2);
 
 		// フレームバッファから読み出し
 		gl.readBuffer(gl.COLOR_ATTACHMENT0);
 		let reading_buffer: Float32Array = new Float32Array(N * 4);
 		gl.readPixels(0, 0, N, 1, gl.RGBA, gl.FLOAT, reading_buffer);
-		// console.log(reading_buffer);
+		//console.log(reading_buffer);
 
-		// 表示する
+		// 結果をスクリーンに描画する
 		gl.useProgram(d_program);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.bindTexture(gl.TEXTURE_2D, null);
@@ -257,11 +281,16 @@ window.onload = () => {
 		gl.vertexAttribPointer(location, 4, gl.FLOAT, false, 0, 0);
 
 		gl.viewport(0, 0, 500, 500);
-		gl.drawArrays(gl.POINTS, 0, index.length);
+		gl.drawArrays(gl.POINTS, 0, N);
 
-		n++;
+		if (n == 0) {
+			n = 1;
+		}
+		else {
+			n = 0;
+		}
 
-		requestAnimationFrame(swapping);
+		// requestAnimationFrame(swapping);
 	}
 };
 
