@@ -118,7 +118,7 @@ window.onload = () => {
 	}
 
 	// 定数
-	const N = 2;
+	const N = 512;
 	
 	// 背景を白にする
 	let white: number[] = [1.0, 1.0, 1.0, 1.0];
@@ -172,15 +172,6 @@ window.onload = () => {
 	let program: WebGLProgram = link_shader(gl, vs, fs, ["old_p", "gl_Position"]);
 	let d_program: WebGLProgram = link_shader(gl, vs_d, fs_d, null);
 
-	// in変数をVBOと関連付ける
-	let index_buffer: WebGLBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, index_buffer);
-	gl.bufferData(gl.ARRAY_BUFFER, index_, gl.STATIC_DRAW);
-	let location: number = gl.getAttribLocation(program, "index");
-	gl.enableVertexAttribArray(location);
-	gl.vertexAttribPointer(location, 1, gl.FLOAT, false, 0, 0);
-	gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
 	// Transform Feedback用のバッファを用意する
 	let old_p_buffer: WebGLBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
@@ -194,7 +185,7 @@ window.onload = () => {
 	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, p_buffer);
 
 	let n: number = 0;
-	swapping();
+
 	swapping();
 
 	function swapping() {
@@ -204,6 +195,15 @@ window.onload = () => {
 	
 		// GPGPUシェーダを使用
 		gl.useProgram(program);
+
+		// in変数をVBOと関連付ける
+		let index_buffer: WebGLBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, index_buffer);
+		gl.bufferData(gl.ARRAY_BUFFER, index_, gl.STATIC_DRAW);
+		let loc: number = gl.getAttribLocation(program, "index");
+		gl.enableVertexAttribArray(loc);
+		gl.vertexAttribPointer(loc, 1, gl.FLOAT, false, 0, 0);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
 		// フレームバッファをバインドする
 		let f: WebGLFramebuffer = gl.createFramebuffer();
@@ -259,7 +259,7 @@ window.onload = () => {
 		gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf2);
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 		//console.log(tf_buf1);
-		console.log(tf_buf2);
+		//console.log(tf_buf2);
 
 		// フレームバッファから読み出し
 		gl.readBuffer(gl.COLOR_ATTACHMENT0);
@@ -290,7 +290,7 @@ window.onload = () => {
 			n = 0;
 		}
 
-		// requestAnimationFrame(swapping);
+		requestAnimationFrame(swapping);
 	}
 };
 

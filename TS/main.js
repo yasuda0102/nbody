@@ -22,7 +22,7 @@ window.onload = function () {
         return;
     }
     // 定数
-    var N = 2;
+    var N = 512;
     // 背景を白にする
     var white = [1.0, 1.0, 1.0, 1.0];
     gl.clearBufferfv(gl.COLOR, 0, white);
@@ -66,17 +66,9 @@ window.onload = function () {
     var fs = compile_shader(gl, gl.FRAGMENT_SHADER, fragment_shader);
     var vs_d = compile_shader(gl, gl.VERTEX_SHADER, vs_display);
     var fs_d = compile_shader(gl, gl.FRAGMENT_SHADER, fs_display);
-    // シェーダをリンク・使用する
+    // シェーダをリンクする
     var program = link_shader(gl, vs, fs, ["old_p", "gl_Position"]);
     var d_program = link_shader(gl, vs_d, fs_d, null);
-    // in変数をVBOと関連付ける
-    var index_buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, index_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, index_, gl.STATIC_DRAW);
-    var location = gl.getAttribLocation(program, "index");
-    gl.enableVertexAttribArray(location);
-    gl.vertexAttribPointer(location, 1, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
     // Transform Feedback用のバッファを用意する
     var old_p_buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
@@ -90,13 +82,20 @@ window.onload = function () {
     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, p_buffer);
     var n = 0;
     swapping();
-    swapping();
     function swapping() {
         // Transform Feedbackを使う
         var transform_feedback = gl.createTransformFeedback();
         gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transform_feedback);
         // GPGPUシェーダを使用
         gl.useProgram(program);
+        // in変数をVBOと関連付ける
+        var index_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, index_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, index_, gl.STATIC_DRAW);
+        var loc = gl.getAttribLocation(program, "index");
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 1, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
         // フレームバッファをバインドする
         var f = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, f);
@@ -142,7 +141,7 @@ window.onload = function () {
         gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf2);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         //console.log(tf_buf1);
-        console.log(tf_buf2);
+        //console.log(tf_buf2);
         // フレームバッファから読み出し
         gl.readBuffer(gl.COLOR_ATTACHMENT0);
         var reading_buffer = new Float32Array(N * 4);
@@ -167,7 +166,7 @@ window.onload = function () {
         else {
             n = 0;
         }
-        // requestAnimationFrame(swapping);
+        requestAnimationFrame(swapping);
     }
 };
 function transfer_data(gl, list, dimension, iformat, format, type) {
