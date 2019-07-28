@@ -77,10 +77,11 @@ void main(void) {
 
 const vs_display: string = `#version 300 es
 
-in vec4 pp;
+uniform sampler2D p;
 
 void main(void) {
-	gl_Position = pp;
+	ivec2 pos = ivec2(gl_VertexID, 0);
+	gl_Position = texelFetch(p, pos, 0);
 	gl_PointSize = 4.0;
 }
 `;
@@ -140,7 +141,7 @@ window.onload = () => {
 			v.push(0);
 			a.push(0);
 		}
-		m.push(1.0e+3);
+		m.push(1.0e+2);
 	}
 	let index_: Float32Array = new Float32Array(index);
 	let pp: Float32Array = new Float32Array(p);
@@ -248,24 +249,24 @@ window.onload = () => {
 		gl.endTransformFeedback();
 		gl.flush();
 
-		// Transform Feedbackの内容を取り出す
-		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
-		gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
-		let tf_buf1 = new Float32Array(p);
-		gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf1);
-		gl.bindBuffer(gl.ARRAY_BUFFER, p_buffer);
-		let tf_buf2 = new Float32Array(p);
-		gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf2);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
-		//console.log(tf_buf1);
-		//console.log(tf_buf2);
+		// // Transform Feedbackの内容を取り出す
+		// gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+		// gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+		// gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
+		// let tf_buf1 = new Float32Array(p);
+		// gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf1);
+		// gl.bindBuffer(gl.ARRAY_BUFFER, p_buffer);
+		// let tf_buf2 = new Float32Array(p);
+		// gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf2);
+		// gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		// console.log(tf_buf1);
+		// console.log(tf_buf2);
 
-		// フレームバッファから読み出し
-		gl.readBuffer(gl.COLOR_ATTACHMENT0);
-		let reading_buffer: Float32Array = new Float32Array(N * 4);
-		gl.readPixels(0, 0, N, 1, gl.RGBA, gl.FLOAT, reading_buffer);
-		//console.log(reading_buffer);
+		// // フレームバッファから読み出し
+		// gl.readBuffer(gl.COLOR_ATTACHMENT0);
+		// let reading_buffer: Float32Array = new Float32Array(N * 4);
+		// gl.readPixels(0, 0, N, 1, gl.RGBA, gl.FLOAT, reading_buffer);
+		// console.log(reading_buffer);
 
 		// 結果をスクリーンに描画する
 		gl.useProgram(d_program);
@@ -273,14 +274,11 @@ window.onload = () => {
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
 
-		let aaa: WebGLBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, aaa);
-		gl.bufferData(gl.ARRAY_BUFFER, reading_buffer, gl.STATIC_DRAW);
-		let location: number = gl.getAttribLocation(d_program, "pp");
-		gl.enableVertexAttribArray(location);
-		gl.vertexAttribPointer(location, 4, gl.FLOAT, false, 0, 0);
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, pp_tex[(n % 2)?1:0]);
+		gl.uniform1i(gl.getUniformLocation(d_program, "p"), 0);
 
-		gl.viewport(0, 0, 500, 500);
+		gl.viewport(0, 0, canvas.width, canvas.height);
 		gl.drawArrays(gl.POINTS, 0, N);
 
 		if (n == 0) {
