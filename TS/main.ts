@@ -17,7 +17,7 @@ void main(void) {
 
 	float max = float(textureSize(p, 0).x);
 	float x_coord = (index / (max - 1.0)) * 2.0 - 1.0;
-	if (x_coord <= 0.0) {
+	if (x_coord < 1.0e-5) {
 		x_coord += 1.0 / max;
 	}
 	else {
@@ -100,14 +100,7 @@ void main(void) {
 window.onload = () => {
 	// WebGL 2.0コンテキストを取得する
 	const canvas: HTMLCanvasElement = <HTMLCanvasElement> document.getElementById("webgl");
-	let gl: WebGL2RenderingContext;
-	try {
-		gl = canvas.getContext("webgl2");
-	}
-	catch (e) {
-		console.log("WebGL 2.0 is disabled!");
-	}
-
+	let gl: WebGL2RenderingContext = <WebGL2RenderingContext> canvas.getContext("webgl2");
 	// floatのテクスチャを有効にする
 	if (gl.getExtension("OES_texture_float_linear") == null) {
 		console.log("OES_texture_float_linear is not supported!");
@@ -174,12 +167,18 @@ window.onload = () => {
 	let d_program: WebGLProgram = link_shader(gl, vs_d, fs_d, null);
 
 	// Transform Feedback用のバッファを用意する
-	let old_p_buffer: WebGLBuffer = gl.createBuffer();
+	let old_p_buffer: WebGLBuffer | null = gl.createBuffer();
+	if (old_p_buffer == null) {
+		throw new Error();
+	}
 	gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
 	gl.bufferData(gl.ARRAY_BUFFER, pp, gl.STREAM_READ);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, old_p_buffer);
-	let p_buffer: WebGLBuffer = gl.createBuffer();
+	let p_buffer: WebGLBuffer | null = gl.createBuffer();
+	if (p_buffer == null) {
+		throw new Error();
+	}
 	gl.bindBuffer(gl.ARRAY_BUFFER, p_buffer);
 	gl.bufferData(gl.ARRAY_BUFFER, pp, gl.STREAM_READ);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -191,14 +190,20 @@ window.onload = () => {
 
 	function swapping() {
 		// Transform Feedbackを使う
-		let transform_feedback: WebGLTransformFeedback = gl.createTransformFeedback();
+		let transform_feedback: WebGLTransformFeedback | null = gl.createTransformFeedback();
+		if (transform_feedback == null) {
+			throw new Error();
+		}
 		gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transform_feedback);
 	
 		// GPGPUシェーダを使用
 		gl.useProgram(program);
 
 		// in変数をVBOと関連付ける
-		let index_buffer: WebGLBuffer = gl.createBuffer();
+		let index_buffer: WebGLBuffer | null = gl.createBuffer();
+		if (index_buffer == null) {
+			throw new Error();
+		}
 		gl.bindBuffer(gl.ARRAY_BUFFER, index_buffer);
 		gl.bufferData(gl.ARRAY_BUFFER, index_, gl.STATIC_DRAW);
 		let loc: number = gl.getAttribLocation(program, "index");
@@ -207,7 +212,10 @@ window.onload = () => {
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
 		// フレームバッファをバインドする
-		let f: WebGLFramebuffer = gl.createFramebuffer();
+		let f: WebGLFramebuffer | null = gl.createFramebuffer();
+		if (f == null) {
+			throw new Error();
+		}
 		gl.bindFramebuffer(gl.FRAMEBUFFER, f);
 	
 		// テクスチャをレンダーターゲットに指定
@@ -294,7 +302,10 @@ window.onload = () => {
 
 function transfer_data(gl: WebGL2RenderingContext, list: Float32Array, dimension: number, 
 	                   iformat: number, format: number, type: number): WebGLTexture {
-	let tex: WebGLTexture = gl.createTexture();
+	let tex: WebGLTexture | null = gl.createTexture();
+	if (tex == null) {
+		throw new Error();
+	}
 	gl.bindTexture(gl.TEXTURE_2D, tex);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -307,7 +318,10 @@ function transfer_data(gl: WebGL2RenderingContext, list: Float32Array, dimension
 }
 
 function compile_shader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
-	let s = gl.createShader(type);
+	let s: WebGLShader | null = gl.createShader(type);
+	if (s == null) {
+		throw new Error();
+	}
 
 	gl.shaderSource(s, source);
 	gl.compileShader(s);
@@ -316,8 +330,11 @@ function compile_shader(gl: WebGL2RenderingContext, type: number, source: string
 	return s;
 }
 
-function link_shader(gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShader, tf_list: string[]): WebGLProgram {
-	let p: WebGLProgram = gl.createProgram();
+function link_shader(gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShader, tf_list: string[] | null): WebGLProgram {
+	let p: WebGLProgram | null = gl.createProgram();
+	if (p == null) {
+		throw new Error();
+	}
 
 	gl.attachShader(p, vs);
 	gl.attachShader(p, fs);

@@ -113,8 +113,3 @@ a.out
 # ESLint
 node_modules
 .eslintrc.json
-package-lock.json
-package.json
-
-# Typescript
-tsconfig.json
