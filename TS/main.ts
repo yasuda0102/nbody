@@ -10,33 +10,20 @@ uniform sampler2D v;
 uniform sampler2D a;
 
 void main(void) {
-	int x = int(index) % 512;
-	int y = int(index) / 512;
-	ivec2 tex_index = ivec2(x, y);
+	ivec2 tex_index = ivec2(int(index), 0);
 	old_p = texelFetch(p, tex_index, 0);
 	old_v = texelFetch(v, tex_index, 0);
 	old_a = texelFetch(a, tex_index, 0);
 
-	float max_x = float(textureSize(p, 0).x);
-	float max_y = float(textureSize(p, 0).y);
-	
-	float x_coord = (float(x) / (max_x - 1.0)) * 2.0 - 1.0;
+	float max = float(textureSize(p, 0).x);
+	float x_coord = (index / (max - 1.0)) * 2.0 - 1.0;
 	if (x_coord < 1.0e-5) {
-		x_coord += 1.0 / max_x;
+		x_coord += 1.0 / max;
 	}
 	else {
-		x_coord -= 1.0 / max_x;
+		x_coord -= 1.0 / max;
 	}
-
-	float y_coord = (float(y) / max_y) * 2.0 - 1.0;
-	if (y_coord < 1.0e-5) {
-		y_coord += 1.0 / max_y;
-	}
-	else {
-		y_coord -= 1.0 / max_y;
-	}
-
-	gl_Position = vec4(x_coord, y_coord, 0.0, 1.0);
+	gl_Position = vec4(x_coord, 0.0, 0.0, 1.0);
 	index_fs = index;
 }
 `;
@@ -93,7 +80,7 @@ const vs_display: string = `#version 300 es
 uniform sampler2D p;
 
 void main(void) {
-	ivec2 pos = ivec2(gl_VertexID % 512, gl_VertexID / 512);
+	ivec2 pos = ivec2(gl_VertexID, 0);
 	gl_Position = texelFetch(p, pos, 0);
 	gl_PointSize = 4.0;
 }
@@ -125,7 +112,7 @@ window.onload = () => {
 	}
 
 	// 定数
-	const N = 768;
+	const N = 512;
 	
 	// 背景を白にする
 	let white: number[] = [1.0, 1.0, 1.0, 1.0];
@@ -270,18 +257,18 @@ window.onload = () => {
 		gl.endTransformFeedback();
 		gl.flush();
 
-		// Transform Feedbackの内容を取り出す
-		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-		gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
-		gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
-		let tf_buf1 = new Float32Array(p);
-		gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf1);
-		gl.bindBuffer(gl.ARRAY_BUFFER, p_buffer);
-		let tf_buf2 = new Float32Array(p);
-		gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf2);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
-		console.log(tf_buf1);
-		console.log(tf_buf2);
+		// // Transform Feedbackの内容を取り出す
+		// gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+		// gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+		// gl.bindBuffer(gl.ARRAY_BUFFER, old_p_buffer);
+		// let tf_buf1 = new Float32Array(p);
+		// gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf1);
+		// gl.bindBuffer(gl.ARRAY_BUFFER, p_buffer);
+		// let tf_buf2 = new Float32Array(p);
+		// gl.getBufferSubData(gl.ARRAY_BUFFER, 0, tf_buf2);
+		// gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		// console.log(tf_buf1);
+		// console.log(tf_buf2);
 
 		// // フレームバッファから読み出し
 		// gl.readBuffer(gl.COLOR_ATTACHMENT0);
