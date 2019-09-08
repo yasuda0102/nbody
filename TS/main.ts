@@ -67,7 +67,7 @@ void main(void) {
     // リープフロッグ法
     vec4 pp_half = old_v + vec4(TIME_STEP / 2.0) * old_a;
     vec4 pp_p = old_p + TIME_STEP * pp_half;
-	vec4 pp_v = old_v + (TIME_STEP * 2.0) * vec4(f, 0.0);
+	vec4 pp_v = old_v + vec4(TIME_STEP / 2.0) * (old_a + vec4(f, 0.0));
 
     new_a = vec4(f, 0.0);
     new_v = pp_v;
